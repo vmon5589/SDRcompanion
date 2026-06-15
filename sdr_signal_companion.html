@@ -1,0 +1,2451 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Software-Defined Radio &amp; Signal Analysis — A Python Companion</title>
+
+<!-- MathJax for rendered equations -->
+<script>
+  window.MathJax = {
+    tex: { inlineMath: [['$','$'], ['\\(','\\)']], displayMath: [['$$','$$'], ['\\[','\\]']] },
+    svg: { fontCache: 'global' }
+  };
+</script>
+<script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js" async></script>
+
+<!-- Plotly for interactive plots -->
+<script src="https://cdn.plot.ly/plotly-2.30.0.min.js" charset="utf-8"></script>
+
+<style>
+  :root{
+    --bg:#05060d; --panel:rgba(18,22,40,0.72); --panel-solid:#0e1124;
+    --ink:#e8ecff; --muted:#9aa3c7; --line:rgba(140,160,230,0.18);
+    --cyan:#3fd0ff; --amber:#ffb24a; --violet:#b08cff; --rose:#ff6b9d; --green:#5ee6a8;
+    --maxw:1080px;
+  }
+  *{box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{
+    margin:0; background:var(--bg); color:var(--ink);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    line-height:1.65; overflow-x:hidden;
+  }
+  #starfield{position:fixed; inset:0; z-index:-2; display:block}
+  body::after{
+    content:""; position:fixed; inset:0; z-index:-1; pointer-events:none;
+    background:
+      radial-gradient(1200px 700px at 80% -10%, rgba(40,90,140,0.22), transparent 60%),
+      radial-gradient(900px 600px at 10% 110%, rgba(80,40,140,0.18), transparent 60%),
+      radial-gradient(1400px 900px at 50% 50%, rgba(0,0,0,0.0), rgba(5,6,13,0.65) 90%);
+  }
+
+  /* ---------- Top nav ---------- */
+  nav{
+    position:sticky; top:0; z-index:50; backdrop-filter:blur(12px);
+    background:linear-gradient(180deg, rgba(5,6,13,0.92), rgba(5,6,13,0.55));
+    border-bottom:1px solid var(--line);
+  }
+  nav .wrap{max-width:var(--maxw); margin:0 auto; padding:10px 20px; display:flex; gap:14px; align-items:center; flex-wrap:wrap}
+  nav .brand{font-weight:700; letter-spacing:.3px; color:#fff; white-space:nowrap}
+  nav .brand small{display:block; font-weight:400; color:var(--muted); font-size:11px; letter-spacing:.4px}
+  nav .links{display:flex; gap:6px; flex-wrap:wrap; margin-left:auto}
+  nav a{color:var(--muted); text-decoration:none; font-size:12.5px; padding:6px 10px; border-radius:8px; white-space:nowrap}
+  nav a:hover{color:#fff; background:rgba(120,140,230,0.12)}
+  nav a.proto{color:var(--amber)}
+
+  /* ---------- Layout ---------- */
+  header.hero{max-width:var(--maxw); margin:0 auto; padding:70px 22px 30px; text-align:center}
+  header.hero h1{font-size:clamp(30px,5vw,52px); margin:0 0 8px; line-height:1.08; letter-spacing:-.5px}
+  header.hero h1 .grad{background:linear-gradient(90deg,var(--cyan),var(--violet),var(--amber)); -webkit-background-clip:text; background-clip:text; color:transparent}
+  header.hero .sub{color:var(--muted); font-size:18px; max-width:720px; margin:10px auto 0}
+  header.hero .byline{margin-top:18px; font-size:13.5px; color:var(--muted)}
+  header.hero .byline b{color:var(--ink)}
+
+  main{max-width:var(--maxw); margin:0 auto; padding:10px 22px 80px}
+  section.chapter{
+    margin:46px 0; padding:26px clamp(16px,3vw,34px);
+    background:var(--panel); border:1px solid var(--line); border-radius:18px;
+    box-shadow:0 20px 60px rgba(0,0,0,0.35);
+  }
+  section.chapter.proto{border-color:rgba(255,178,74,0.32); box-shadow:0 20px 60px rgba(60,40,0,0.35)}
+  .era{display:inline-block; font-size:12px; letter-spacing:1.5px; text-transform:uppercase; color:var(--cyan); border:1px solid var(--line); padding:4px 10px; border-radius:999px}
+  .chapter.proto .era{color:var(--amber)}
+  .chapter h2{font-size:clamp(22px,3.2vw,30px); margin:14px 0 2px; line-height:1.15}
+  .chapter .who{color:var(--muted); font-size:14px; margin:0 0 8px}
+
+  .divider{max-width:var(--maxw); margin:60px auto 0; padding:0 22px; text-align:center}
+  .divider .rule{height:1px; background:linear-gradient(90deg,transparent,var(--line),transparent); margin:0 0 18px}
+  .divider h3{font-size:clamp(20px,3vw,26px); margin:0; color:#fff}
+  .divider h3 .grad{background:linear-gradient(90deg,var(--amber),var(--rose)); -webkit-background-clip:text; background-clip:text; color:transparent}
+  .divider p{color:var(--muted); max-width:680px; margin:8px auto 0; font-size:15px}
+
+  /* concept beats */
+  .beats{display:grid; gap:14px; margin:18px 0}
+  .beat{border-left:2px solid var(--line); padding:2px 0 2px 16px}
+  .beat .tag{font-size:11.5px; letter-spacing:1.2px; text-transform:uppercase; font-weight:700}
+  .beat.known .tag{color:var(--muted)}
+  .beat.idea  .tag{color:var(--violet)}
+  .beat.test  .tag{color:var(--amber)}
+  .beat.found .tag{color:var(--green)}
+  .beat p{margin:4px 0 0}
+  .beat.found{border-left-color:var(--green)}
+
+  .lab{
+    margin-top:22px; background:rgba(8,10,22,0.72); border:1px solid var(--line);
+    border-radius:14px; padding:18px clamp(12px,2.4vw,20px);
+  }
+  .lab h3{margin:0 0 4px; font-size:15px; letter-spacing:.4px; color:#fff; display:flex; align-items:center; gap:8px}
+  .lab h3 .dot{width:8px;height:8px;border-radius:50%;background:var(--cyan);box-shadow:0 0 12px var(--cyan)}
+  .chapter.proto .lab h3 .dot{background:var(--amber);box-shadow:0 0 12px var(--amber)}
+  .lab .hint{color:var(--muted); font-size:13px; margin:0 0 12px}
+
+  .controls{display:grid; grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); gap:14px 22px; margin:6px 0 14px}
+  .ctl label{display:flex; justify-content:space-between; font-size:13px; color:var(--muted); margin-bottom:4px}
+  .ctl label b{color:var(--ink); font-variant-numeric:tabular-nums}
+  input[type=range]{ width:100%; accent-color:var(--cyan); height:22px}
+  .chapter.proto input[type=range]{accent-color:var(--amber)}
+  select,input[type=text]{width:100%; background:var(--panel-solid); color:var(--ink); border:1px solid var(--line); border-radius:8px; padding:7px 9px; font-size:13px}
+  .btnrow{display:flex; gap:8px; flex-wrap:wrap; margin:2px 0 6px}
+  button.act{background:var(--panel-solid); color:var(--ink); border:1px solid var(--line); border-radius:9px; padding:8px 14px; font-size:13px; cursor:pointer}
+  button.act:hover{border-color:var(--cyan)}
+
+  .readout{display:flex; flex-wrap:wrap; gap:10px 18px; margin:10px 0 4px}
+  .stat{background:rgba(120,140,230,0.08); border:1px solid var(--line); border-radius:10px; padding:8px 13px; min-width:120px}
+  .stat .k{font-size:11px; color:var(--muted); letter-spacing:.4px; text-transform:uppercase}
+  .stat .v{font-size:19px; font-weight:700; font-variant-numeric:tabular-nums}
+  .stat .v small{font-size:12px; color:var(--muted); font-weight:500}
+
+  .verdict{margin-top:10px; padding:10px 14px; border-radius:10px; font-size:14px; border:1px solid var(--line)}
+  .verdict.good{background:rgba(94,230,168,0.10); border-color:rgba(94,230,168,0.4)}
+  .verdict.bad{background:rgba(255,107,157,0.10); border-color:rgba(255,107,157,0.4)}
+
+  .plot{width:100%; height:340px}
+  .plot.tall{height:420px}
+
+  figure{margin:0; background:rgba(0,0,0,0.35); border:1px solid var(--line); border-radius:14px; overflow:hidden}
+  figure canvas{display:block; width:100%; height:auto; background:#05060d}
+  figcaption{padding:9px 13px; font-size:12.5px; color:var(--muted)}
+
+  .eq{overflow-x:auto; margin:6px 0}
+  .pill{display:inline-block; font-size:11.5px; color:var(--amber); border:1px solid var(--line); border-radius:999px; padding:2px 9px; margin:2px 4px 2px 0}
+
+  /* python code block */
+  pre.code{background:#080b18; border:1px solid var(--line); border-left:3px solid var(--cyan);
+    border-radius:11px; padding:14px 16px; overflow-x:auto; margin:14px 0;
+    font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; font-size:12.7px; line-height:1.6; color:#d6dcff;
+    white-space:pre;}
+  pre.code .c{color:#69739c; font-style:italic}   /* comment */
+  pre.code .s{color:var(--green)}                  /* string */
+  pre.code .n{color:var(--amber)}                  /* number */
+  pre.code .k{color:var(--violet)}                 /* keyword */
+  pre.code .b{color:var(--cyan)}                   /* builtin / numpy */
+  .codecap{font-size:12px; color:var(--muted); margin:-6px 0 2px}
+  .fileref{font-family:ui-monospace,Menlo,monospace; font-size:12px; color:var(--amber);
+    background:rgba(255,178,74,0.08); border:1px solid rgba(255,178,74,0.25); border-radius:6px; padding:1px 6px}
+  code.inlinecode{font-family:ui-monospace,Menlo,monospace; font-size:12.5px; color:#cfe9ff;
+    background:rgba(63,208,255,0.08); border:1px solid var(--line); border-radius:5px; padding:0 5px}
+
+  /* derivation block */
+  .deriv{margin-top:18px; background:rgba(176,140,255,0.06); border:1px solid var(--line); border-left:3px solid var(--violet); border-radius:12px; padding:14px 16px 16px}
+  .deriv h4{margin:0 0 4px; font-size:12px; color:var(--violet); letter-spacing:1.2px; text-transform:uppercase; display:flex; align-items:center; gap:8px}
+  .deriv h4 .ic{font-size:14px}
+  .deriv > p.lead{margin:2px 0 6px; font-size:13.5px; color:var(--muted)}
+  .deriv ol{margin:6px 0 0; padding-left:22px}
+  .deriv ol li{margin:8px 0; font-size:14px; line-height:1.6}
+  .deriv ol li b{color:#fff}
+  .deriv .concl{margin-top:12px; padding:9px 13px; background:rgba(94,230,168,0.09); border:1px solid rgba(94,230,168,0.32); border-radius:9px; font-size:14px}
+  .deriv .concl b{color:var(--green)}
+
+  /* step list */
+  .steps{counter-reset:st; display:grid; gap:10px; margin:14px 0 2px}
+  .step{position:relative; padding:10px 12px 10px 44px; background:rgba(120,140,230,0.06); border:1px solid var(--line); border-radius:10px; font-size:13.5px}
+  .step::before{counter-increment:st; content:counter(st); position:absolute; left:12px; top:10px; width:22px; height:22px; border-radius:50%; background:rgba(255,178,74,0.18); color:var(--amber); font-weight:700; font-size:12px; display:flex; align-items:center; justify-content:center}
+  .step b{color:#fff}
+
+  .subhead{margin:28px 0 2px; font-size:17px; color:#fff; font-weight:700; line-height:1.25}
+  .subhead .n{color:var(--cyan); margin-right:9px; font-variant-numeric:tabular-nums}
+  .leadin{color:var(--muted); font-size:14px; margin:5px 0 0; max-width:780px}
+  .mathnote{margin-top:16px; background:rgba(63,208,255,0.05); border:1px solid var(--line); border-left:3px solid var(--cyan); border-radius:12px; padding:13px 16px}
+  .mathnote h4{margin:0 0 5px; font-size:12px; color:var(--cyan); letter-spacing:1.2px; text-transform:uppercase}
+  .mathnote p{margin:5px 0 0; font-size:14px; line-height:1.6}
+  .mathnote b{color:#fff}
+
+  footer{max-width:var(--maxw); margin:0 auto; padding:30px 22px 70px; color:var(--muted); font-size:13px; border-top:1px solid var(--line)}
+  footer b{color:var(--ink)}
+  a.inline{color:var(--cyan); text-decoration:none; border-bottom:1px dotted rgba(63,208,255,0.5)}
+
+  /* glossary rail + tooltips */
+  .layout{max-width:1380px; margin:0 auto; padding:0 22px; display:grid; grid-template-columns:280px minmax(0,1fr); gap:26px; align-items:start}
+  .layout > main{max-width:none; margin:0; padding:10px 0 80px}
+  aside#glossaryPanel{position:sticky; top:74px; align-self:start; max-height:calc(100vh - 92px); overflow:auto}
+  .gp-card{background:var(--panel); border:1px solid var(--line); border-radius:16px; padding:16px 16px 14px; box-shadow:0 14px 40px rgba(0,0,0,0.3)}
+  .gp-card .gp-sec{font-size:11px; text-transform:uppercase; letter-spacing:1.4px; color:var(--cyan)}
+  .gp-card h4{margin:3px 0 10px; font-size:14px; color:#fff; line-height:1.25}
+  .gp-empty{color:var(--muted); font-size:12.5px; line-height:1.5; margin:6px 0 0}
+  .gp-count{font-size:11px; color:var(--muted); float:right; font-weight:400; letter-spacing:.3px}
+  .gp-item{padding:10px 0; border-top:1px solid var(--line)}
+  .gp-item:first-of-type{border-top:0; padding-top:2px}
+  .gp-term{font-weight:700; color:var(--green); font-size:13px; cursor:pointer}
+  .gp-term:hover{text-decoration:underline}
+  .gp-def{color:var(--muted); font-size:11.8px; line-height:1.5; margin:3px 0 0}
+  .gp-wiki{display:inline-block; margin-top:6px; font-size:11.3px; color:var(--amber); text-decoration:none; border-bottom:1px dotted rgba(255,178,74,0.5)}
+  @media(max-width:1024px){ .layout{grid-template-columns:minmax(0,1fr); padding:0 22px} aside#glossaryPanel{display:none} }
+
+  /* ---------- Phone tier (≤640px) ---------- */
+  @media(max-width:640px){
+    html{ -webkit-text-size-adjust:100%; overflow-x:hidden; }  /* stop iOS auto-inflating text + clip stray overflow */
+    body{ max-width:100%; }
+    :root{ --maxw:100%; }
+
+    /* Wide MathJax equations are the main mobile-overflow culprit: they force the
+       layout viewport wider than the phone, which shrink-zooms the whole page and
+       leaves interactive plots mis-scaled. Let wide math scroll inside its own box. */
+    mjx-container[jax="SVG"]{ display:inline-block; max-width:100%; overflow-x:auto; overflow-y:hidden; vertical-align:middle; }
+    mjx-container[jax="SVG"][display="true"]{ display:block; }
+    mjx-assistive-mml{ max-width:0!important; overflow:hidden!important; }
+    .eq{ max-width:100%; overflow-x:auto; }
+
+    /* nav: turn the long link list into a single swipeable row */
+    nav .wrap{ padding:8px 14px; gap:8px; flex-wrap:nowrap; align-items:flex-start; }
+    nav .brand{ font-size:14px; white-space:normal; }
+    nav .brand small{ font-size:10px; }
+    nav .links{
+      margin-left:0; flex-wrap:nowrap; overflow-x:auto; gap:4px;
+      width:100%; -webkit-overflow-scrolling:touch; padding-bottom:2px;
+      scrollbar-width:none;
+    }
+    nav .links::-webkit-scrollbar{ display:none; }
+    nav a{ padding:7px 11px; font-size:13px; }
+
+    header.hero{ padding:34px 16px 18px; }
+    header.hero .sub{ font-size:15.5px; }
+    header.hero .byline{ font-size:12.5px; }
+
+    .layout{ padding:0 14px; gap:0; }
+    .layout > main{ padding:6px 0 60px; }
+    main{ padding:6px 14px 60px; }
+
+    section.chapter{ margin:26px 0; padding:18px 15px; border-radius:14px; }
+    .divider{ margin-top:40px; padding:0 14px; }
+
+    .lab{ padding:14px 13px; }
+    .controls{ grid-template-columns:1fr; gap:12px; }
+    .plot{ height:300px; }
+    .plot.tall{ height:350px; }
+
+    .readout{ gap:8px; }
+    .stat{ min-width:0; flex:1 1 calc(50% - 8px); padding:7px 11px; }
+    .stat .v{ font-size:17px; }
+
+    pre.code{ font-size:11.3px; padding:12px 12px; }
+    .deriv ol, .problem ol, .step{ font-size:13px; }
+    #termTip{ max-width:calc(100vw - 20px); }
+    .quiz-bar{ order:3; flex-basis:100%; }
+  }
+
+  /* ---------- Very small phones (≤400px) ---------- */
+  @media(max-width:400px){
+    .stat{ flex:1 1 100%; }
+    header.hero h1{ font-size:26px; }
+  }
+
+  .term{color:var(--green); font-weight:700; cursor:help; border-bottom:1px dotted rgba(94,230,168,0.55); transition:color .12s}
+  .term:hover{color:#c9f7e2}
+  .term.flash{animation:termflash 1.2s ease}
+  @keyframes termflash{0%{background:rgba(94,230,168,0.35)}100%{background:transparent}}
+  #termTip{position:fixed; z-index:200; max-width:300px; background:#0b0f22; border:1px solid var(--line); border-radius:12px; padding:12px 14px; box-shadow:0 18px 55px rgba(0,0,0,0.65); font-size:13px; line-height:1.5; color:var(--ink); opacity:0; transform:translateY(5px); pointer-events:none; transition:opacity .12s, transform .12s}
+  #termTip.show{opacity:1; transform:translateY(0); pointer-events:auto}
+  #termTip .tt-term{font-weight:700; color:var(--green); margin-bottom:5px; font-size:13.5px}
+  #termTip .tt-wiki{display:inline-block; margin-top:9px; color:var(--cyan); text-decoration:none; font-size:12.5px; border-bottom:1px dotted rgba(63,208,255,0.5)}
+
+  /* quiz */
+  .quiz-head{display:flex; flex-wrap:wrap; align-items:center; gap:12px 18px; margin:10px 0 18px}
+  .quiz-score{background:rgba(120,140,230,0.1); border:1px solid var(--line); border-radius:12px; padding:9px 16px; font-size:14px; color:var(--muted)}
+  .quiz-score b{color:#fff; font-size:18px; font-variant-numeric:tabular-nums}
+  .quiz-bar{flex:1; min-width:150px; height:8px; background:rgba(120,140,230,0.12); border-radius:99px; overflow:hidden}
+  .quiz-bar > i{display:block; height:100%; width:0; background:linear-gradient(90deg,var(--cyan),var(--green)); transition:width .35s}
+  .quiz-reset{background:var(--panel-solid); color:var(--ink); border:1px solid var(--line); border-radius:9px; padding:8px 15px; font-size:13px; cursor:pointer}
+  .quiz-reset:hover{border-color:var(--cyan)}
+  .q-card{background:rgba(8,10,22,0.6); border:1px solid var(--line); border-radius:14px; padding:15px 17px; margin:13px 0}
+  .q-card .q-text{font-size:15px; line-height:1.5; margin:0 0 12px; color:var(--ink)}
+  .q-card .q-text .q-num{display:inline-block; min-width:24px; color:var(--cyan); font-weight:700}
+  .q-opts{display:grid; gap:8px}
+  .q-opt{display:block; width:100%; text-align:left; background:rgba(120,140,230,0.06); border:1px solid var(--line); border-radius:10px; padding:10px 13px; font-size:14px; color:var(--ink); cursor:pointer; transition:border-color .12s, background .12s}
+  .q-opt:hover:not(:disabled){border-color:var(--cyan)}
+  .q-opt:disabled{cursor:default}
+  .q-opt .q-mark{font-weight:700; margin-right:9px; color:var(--muted)}
+  .q-opt.correct{background:rgba(94,230,168,0.14); border-color:rgba(94,230,168,0.55)}
+  .q-opt.correct .q-mark{color:var(--green)}
+  .q-opt.wrong{background:rgba(255,107,157,0.12); border-color:rgba(255,107,157,0.5)}
+  .q-opt.wrong .q-mark{color:var(--rose)}
+  .q-exp{margin:12px 0 0; padding:10px 13px; font-size:13.5px; line-height:1.55; color:var(--muted); background:rgba(176,140,255,0.06); border:1px solid var(--line); border-left:3px solid var(--violet); border-radius:9px; display:none}
+  .q-exp.show{display:block}
+  .q-exp b{color:var(--ink)}
+
+  /* applied practice problems (collapsible solutions) */
+  .problems{margin-top:14px}
+  .problem{background:rgba(8,10,22,0.6); border:1px solid var(--line); border-radius:12px; padding:14px 16px; margin:12px 0}
+  .problem .pq{font-size:14.5px; line-height:1.6; margin:0; color:var(--ink)}
+  .problem .pq .pn{display:inline-block; min-width:24px; color:var(--amber); font-weight:700}
+  .problem .soln{margin-top:10px; border-top:1px solid var(--line); padding-top:9px}
+  .problem summary{cursor:pointer; color:var(--cyan); font-size:12.5px; font-weight:600; letter-spacing:.4px; list-style:none; padding:3px 0; user-select:none}
+  .problem summary::-webkit-details-marker{display:none}
+  .problem summary::before{content:"\25B8  "}
+  .problem details[open] summary::before{content:"\25BE  "}
+  .problem summary:hover{color:#9fe6ff}
+  .problem ol{margin:6px 0 0; padding-left:22px}
+  .problem ol li{margin:7px 0; font-size:14px; line-height:1.6}
+  .problem ol li b{color:#fff}
+  .problem .ans{margin-top:11px; padding:9px 13px; background:rgba(94,230,168,0.09); border:1px solid rgba(94,230,168,0.32); border-radius:9px; font-size:14px}
+  .problem .ans b{color:var(--green)}
+</style>
+</head>
+<body>
+<canvas id="starfield"></canvas>
+
+<nav>
+  <div class="wrap">
+    <div class="brand">SDR &amp; Signal Analysis <small>A hands-on Python companion · from <code>np.sin</code> to NFC, BLE &amp; Wi-Fi</small></div>
+    <div class="links">
+      <a href="#math">Math</a>
+      <a href="#generate">Generate</a>
+      <a href="#sampling">Sampling</a>
+      <a href="#complex">Complex numbers</a>
+      <a href="#fourier">Fourier</a>
+      <a href="#modulation">Modulation</a>
+      <a href="#nfc" class="proto">NFC</a>
+      <a href="#bluetooth" class="proto">Bluetooth</a>
+      <a href="#wifi" class="proto">Wi-Fi</a>
+      <a href="#quiz">Test yourself</a>
+    </div>
+  </div>
+</nav>
+
+<header class="hero">
+  <h1>Every radio signal is just<br>a list of <span class="grad">numbers</span></h1>
+  <p class="sub">A software-defined radio hands you a stream of samples and nothing else — no needle, no dial, no decoder. Everything from here is Python and NumPy: build a signal, sample it, turn it into complex IQ, take its Fourier transform, modulate it, and finally read a real NFC card, a Bluetooth advertisement, and a Wi-Fi symbol. Every plot recomputes the real DSP live.</p>
+  <p class="byline">A companion to the decoders in this folder — <span class="fileref">decode_fsk.py</span>, <span class="fileref">decode_remote.py</span>, <span class="fileref">nfc_modulation_demo.py</span>, <span class="fileref">decode_nfc.py</span>. Move every slider; the code blocks are the same NumPy the scripts run.</p>
+</header>
+
+<div class="layout">
+<aside id="glossaryPanel">
+  <div class="gp-card">
+    <div class="gp-sec">Glossary</div>
+    <h4>Terms in view</h4>
+    <p class="gp-empty">Scroll through the chapters. Every DSP term in the text is <span style="color:var(--green);font-weight:700">highlighted</span> — hover it for a definition, and this panel fills with the terms (and Wikipedia links) for whatever section you're reading.</p>
+  </div>
+</aside>
+<main>
+
+<!-- ============================================================= -->
+<!-- 0. MATH PRIMER — TRIGONOMETRY & THE GAUSSIAN -->
+<!-- ============================================================= -->
+<section class="chapter" id="math">
+  <span class="era">Chapter 0 · The math beneath</span>
+  <h2>The circle behind every sine, the bell curve behind every noise floor</h2>
+  <p class="who">Where sin actually comes from · what A, f and φ really are · why noise is "Gaussian" and what σ means</p>
+
+  <div class="beats">
+    <div class="beat known"><div class="tag">Why start here</div>
+      <p>Every chapter ahead leans on two mathematical objects. The first is the sine wave $A\sin(2\pi f t+\phi)$ — every carrier, subcarrier and tone in this companion is one of these, or a sum of them. The second is the Gaussian distribution — every time a lab says "add noise σ" or a spec says "Gaussian-smoothed", that bell curve is doing the work. Neither needs to be taken on faith, and both fit in one short chapter.</p></div>
+    <div class="beat idea"><div class="tag">Sine is a circle, unrolled</div>
+      <p>$\sin$ is not an arbitrary squiggle that physics happens to like. Put a point on a circle of radius 1 and ask: <i>how high is it?</i> That height, as a function of the angle you have turned through, <b>is</b> the sine function. Spin the point at a steady rate and write its height down over time — the wave draws itself. Every symbol in $A\sin(2\pi ft+\phi)$ is a property of that spinning point.</p></div>
+    <div class="beat test"><div class="tag">Randomness has a shape</div>
+      <p>Noise is random, but random is not lawless. Add up millions of tiny independent disturbances — the thermal jostling of electrons in your antenna and amplifier — and the total follows one specific, predictable shape: the <b>bell curve</b>. A single number, the standard deviation σ, tells you how wide that bell is, and therefore how loud the noise floor is.</p></div>
+    <div class="beat found"><div class="tag">Where it shows up</div>
+      <p>Chapter 1 turns the spinning circle into NumPy arrays. Chapter 3 promotes it to a point spinning in the <i>complex</i> plane. Chapter 7's GFSK uses the bell curve not as noise but as a smoothing filter. And every SNR readout in every lab below is a ratio between a sine's power and a Gaussian's σ². This chapter is the dictionary for all of that.</p></div>
+  </div>
+
+  <div class="subhead"><span class="n">0.1</span> The sine function — the height of a spinning point</div>
+  <p class="leadin">Trigonometry starts with a right triangle: for an angle θ, $\sin\theta$ is defined as the ratio of the side opposite the angle to the hypotenuse, and $\cos\theta$ as the adjacent side to the hypotenuse — the school mnemonic SOH-CAH-TOA. The quiet miracle, and the reason these ratios deserve names at all, is that they depend only on the angle, never on the triangle's size: scale the triangle up and every side grows in lockstep, so each ratio is frozen. One angle therefore maps to one fixed value of $\sin$ and $\cos$ — and, read backwards, one pair of sides maps back to one angle. (That backwards reading is exactly what <code class="inlinecode">np.angle</code> does in Chapter 3 when it recovers a phase from an (I,&nbsp;Q) pair.)</p>
+  <p class="leadin">On a circle of radius 1, the triangle picture collapses into something simpler. Draw a radius at angle θ from the positive x-axis: the radius <i>is</i> the hypotenuse, and its length is 1, so the ratios become the sides themselves. The point on the rim sits at exactly $(\cos\theta,\ \sin\theta)$. <b>Cosine is the point's horizontal position; sine is its height.</b> Nothing more — and unlike the triangle, the circle keeps working past 90°, for any angle at all.</p>
+  <p class="leadin">Now sweep θ from 0 all the way around and watch only the height: it starts at 0, rises to 1 at a quarter-turn, falls back through 0 at a half-turn, dips to −1 at three quarters, and returns. Plot that height against the angle and you have drawn the sine wave. The wave repeats <i>because the circle closes</i>: after one full turn the point is back where it started, so $\sin(\theta + 2\pi) = \sin\theta$, forever. Periodicity isn't an extra property of sine — it is the circle. Cosine, the horizontal shadow, traces the identical wave a quarter-turn ahead: $\cos\theta = \sin(\theta + \pi/2)$. Two copies of one wave, 90° apart — keep that image; it becomes the I/Q pair at the heart of Chapter 3.</p>
+
+  <div class="deriv">
+    <h4><span class="ic">∴</span> Building $A\sin(2\pi f t + \phi)$ one symbol at a time</h4>
+    <p class="lead">Chapter 1 calls this "the simplest signal". Here is where every piece of it comes from.</p>
+    <ol>
+      <li><b>Start with the height:</b> $\sin\theta$ is the vertical coordinate of a point at angle θ on the unit circle. So far the input is an angle, not time.</li>
+      <li><b>Make it spin:</b> a radio tone repeats $f$ times per second, so the angle must grow by $f$ full turns — $f\times 2\pi$ radians — every second: $\theta(t) = 2\pi f t$. <b>Frequency is nothing but rotation rate.</b> (The product $2\pi f$, in radians per second, is often written ω and called angular frequency.)</li>
+      <li><b>Choose where it starts:</b> at $t=0$ the point doesn't have to sit at angle zero. Its starting angle φ is the <b>phase offset</b> — a head start or delay on the spin: $\theta(t) = 2\pi f t + \phi$. Two tones with identical frequency can differ only in φ — which is exactly the property phase-shift keying (Chapter 5) modulates.</li>
+      <li><b>Choose the size of the circle:</b> a radius of $A$ instead of 1 scales the height everywhere: $x(t) = A\sin(2\pi f t + \phi)$. $A$ is the <b>amplitude</b> — the knob AM and OOK (Chapter 5) turn.</li>
+    </ol>
+    <div class="concl"><b>Takeaway:</b> $A\sin(2\pi ft+\phi)$ is not a formula to memorize, it is a sentence — "the height of a point on a circle of radius $A$, spinning $f$ times per second, that started at angle φ." Amplitude, frequency, phase: the three knobs every modulation scheme in this document turns.</div>
+  </div>
+
+  <div class="lab">
+    <h3><span class="dot"></span>Unroll the circle — every knob of A·sin(2πft + φ)</h3>
+    <p class="hint">A point spins around the circle on the left; the trace on the right is nothing but its height, recorded over time (newest at the left, scrolling right). Turn the three knobs and watch what each one really is: <b>A</b> grows the circle and with it the wave's peaks, <b>f</b> spins the point faster so more cycles fit the window, and <b>φ</b> moves the starting position around the rim, sliding the whole wave sideways. The green leg <i>is</i> A·sin θ at this instant.</p>
+    <div class="controls">
+      <div class="ctl">
+        <label>Amplitude A (circle radius) <b><span id="tr_albl">1.00</span></b></label>
+        <input id="tr_a" type="range" min="0.2" max="1.4" step="0.05" value="1">
+      </div>
+      <div class="ctl">
+        <label>Frequency f (cycles in window) <b><span id="tr_flbl">1.5</span></b></label>
+        <input id="tr_f" type="range" min="0.5" max="4" step="0.25" value="1.5">
+      </div>
+      <div class="ctl">
+        <label>Phase φ (starting angle) <b><span id="tr_plbl">0</span>°</b></label>
+        <input id="tr_p" type="range" min="0" max="360" step="5" value="0">
+      </div>
+    </div>
+    <div class="btnrow">
+      <button class="act" id="tr_play">⏸ pause</button>
+    </div>
+    <div class="readout">
+      <div class="stat"><div class="k" style="text-transform:none">Angle θ = 2πft + φ</div><div class="v" id="tr_th">0°</div></div>
+      <div class="stat"><div class="k" style="text-transform:none">sin θ (height on unit circle)</div><div class="v" id="tr_sin">0.00</div></div>
+      <div class="stat"><div class="k" style="text-transform:none">x = A·sin θ</div><div class="v" id="tr_x">0.00</div></div>
+    </div>
+    <figure><canvas id="tr_canvas" width="900" height="360"></canvas>
+      <figcaption>Left: a point at angle θ on a circle of radius A (dashed ring = radius 1 for reference; cyan dot = the starting angle φ). Right: its height, unrolled against time — the signal x(t) = A·sin(2πft + φ) that Chapter 1 builds in NumPy.</figcaption></figure>
+  </div>
+
+  <div class="mathnote">
+    <h4>Radians, and why 2π is everywhere</h4>
+    <p>A <b>radian</b> measures an angle by arc length on a circle of radius 1: walk a distance of one radius along the rim and you have swept 1 radian. The full rim is $2\pi r$ long, so a full turn is $2\pi$ radians — which is why "$f$ cycles per second" becomes "$2\pi f$ radians per second" inside every sine: 2π radians per cycle, times $f$ cycles per second. That is the <i>only</i> job the $2\pi$ does in every equation in this document. Chapter 3 returns to radians when the spinning point moves to the complex plane.</p>
+  </div>
+
+  <div class="subhead"><span class="n">0.2</span> The Gaussian — what "add noise σ" actually does</div>
+  <p class="leadin">A <b>distribution</b> answers the question: if I draw a random value, which values do I get and how often? Draw thousands of values and pile them into a histogram and the distribution is the shape the pile takes. The <b>Gaussian</b> (or "normal") distribution is the most important shape in all of measurement: a symmetric bell centred on a mean μ (zero, for noise), falling off smoothly on both sides. Its width is set by one number, the <b>standard deviation σ</b> — the typical distance of a sample from the centre. The bell's equation is $p(v)=\frac{1}{\sigma\sqrt{2\pi}}\,e^{-v^2/2\sigma^2}$, but you will never need to evaluate it by hand; what matters is the shape and the σ.</p>
+  <p class="leadin">σ comes with a remarkably useful rule of thumb: about <b>68%</b> of samples land within ±1σ of the mean, <b>95%</b> within ±2σ, and <b>99.7%</b> within ±3σ — whatever σ is. So "noise with σ = 0.3" means: most samples nudge the signal by less than ±0.3, a few by up to ±0.6, and almost none by more than ±0.9. One number describes the entire noise floor.</p>
+
+  <div class="deriv">
+    <h4><span class="ic">∴</span> Why noise is Gaussian — "AWGN", unpacked word by word</h4>
+    <p class="lead">Receiver noise isn't Gaussian by convention. It's Gaussian by theorem.</p>
+    <ol>
+      <li><b>The noise at your antenna is a sum.</b> The voltage wobble in any conductor above absolute zero is the combined effect of billions of electrons being thermally jostled, each contributing a minuscule independent push (Johnson–Nyquist noise — the same Nyquist as Chapter 2).</li>
+      <li><b>The central limit theorem:</b> add up many small independent random contributions and the total follows the bell curve — <i>regardless</i> of the distribution of each individual piece. This is why the Gaussian appears everywhere from RF to test scores: it is the universal shape of accumulated randomness.</li>
+      <li><b>"Additive":</b> the noise simply adds to the signal, sample by sample: $x_{rx}[n] = x[n] + \text{noise}[n]$. It doesn't multiply it or distort it.</li>
+      <li><b>"White":</b> each noise sample is independent of the last, so no frequency is favoured — the noise spreads its power evenly across the whole spectrum, the way white light contains every colour. On an FFT plot it is the flat "floor" the real spikes must rise above.</li>
+    </ol>
+    <div class="concl"><b>Conclusion:</b> <b>AWGN</b> — additive white Gaussian noise — is the standard model of a real receiver, and <code class="inlinecode">x + np.random.normal(0, sigma, n)</code> is its entire simulation. Every noise slider in this companion runs exactly that line.</div>
+  </div>
+
+  <p class="codecap">Gaussian noise in one line — and the SNR formula behind every lab readout:</p>
+<pre class="code">import numpy as np
+
+sigma = 0.3
+noise = np.random.normal(0, sigma, 4096)  # mean 0, std-dev sigma: the bell curve, sampled
+
+x_rx = x + noise                # "add Gaussian noise" is literally this line
+
+np.mean(np.abs(noise) < sigma)      # -> ~0.68   68% of samples within ±1 sigma
+np.mean(np.abs(noise) < 2*sigma)    # -> ~0.95   95% within ±2 sigma
+
+# noise power = sigma**2 (the variance); a sine's power = A**2 / 2
+snr_db = 10*np.log10((A**2/2) / sigma**2)   # the "SNR (dB)" readout in every lab</pre>
+
+  <div class="lab">
+    <h3><span class="dot"></span>The noise slider, dissected</h3>
+    <p class="hint">The top panel is a clean tone (dashed grey) with Gaussian noise of standard deviation σ added to every sample (cyan) — the same thing the "noise σ" slider does in every other lab. The bottom panel is the histogram of the noise values alone, with the ideal bell curve overlaid in amber: σ is simply the width of that bell. Drag σ and notice the measured 68% / 95% figures barely move — the <i>shape</i> is invariant; only the width scales.</p>
+    <div class="controls">
+      <div class="ctl">
+        <label>Noise σ (standard deviation) <b><span id="gs_slbl">0.30</span></b></label>
+        <input id="gs_s" type="range" min="0.05" max="1" step="0.05" value="0.3">
+      </div>
+    </div>
+    <div class="readout">
+      <div class="stat"><div class="k">Within ±1<span style="text-transform:none">σ</span></div><div class="v" id="gs_p1">—</div></div>
+      <div class="stat"><div class="k">Within ±2<span style="text-transform:none">σ</span></div><div class="v" id="gs_p2">—</div></div>
+      <div class="stat"><div class="k">Signal power A²/2</div><div class="v">0.50</div></div>
+      <div class="stat"><div class="k">SNR</div><div class="v" id="gs_snr">— <small>dB</small></div></div>
+    </div>
+    <div id="gs_sig" class="plot" style="height:200px"></div>
+    <div id="gs_hist" class="plot" style="height:250px"></div>
+    <div class="verdict" id="gs_verdict"></div>
+  </div>
+
+  <div class="mathnote">
+    <h4>Decibels — the unit every SNR readout uses</h4>
+    <p>Power ratios in radio span absurd ranges — a received signal can carry a millionth of a millionth of the transmitted power — so RF speaks in logarithms. A power ratio $P_1/P_0$ expressed in <b>decibels</b> is $10\log_{10}(P_1/P_0)$ dB. Three values are worth memorizing: <b>+3 dB ≈ ×2</b> in power, <b>+10 dB = ×10</b>, <b>+20 dB = ×100</b>; negative dB are the same factors in reverse, and 0 dB means "equal". Logarithms also turn multiplication into addition, so a chain of gains and losses simply sums. SNR — signal-to-noise ratio — is a power ratio, hence dB: a readout of "10 dB" means the signal carries ten times the noise power; "−3 dB" means the noise has twice the power of the signal.</p>
+  </div>
+
+  <h3 class="subhead">Practice problems</h3>
+  <div class="problems">
+    <div class="problem">
+      <p class="pq"><span class="pn">1.</span> A lab generates a tone of amplitude $A=1.0$ and adds AWGN with standard deviation $\sigma=0.25$. Using a sine's power $A^2/2$, noise power $\sigma^2$, and $\text{SNR}_\text{dB}=10\log_{10}\!\big(\tfrac{A^2/2}{\sigma^2}\big)$, what SNR does the readout show?</p>
+      <details class="soln"><summary>Show solution</summary>
+        <ol>
+          <li><b>Signal power.</b> $A^2/2 = 1.0^2/2 = 0.5$.</li>
+          <li><b>Noise power.</b> $\sigma^2 = 0.25^2 = 0.0625$.</li>
+          <li><b>Take the ratio in dB.</b> $10\log_{10}(0.5/0.0625) = 10\log_{10}(8)$.</li>
+        </ol>
+        <div class="ans"><b>Answer:</b> $\approx 9.03$ dB — the tone carries about 8× the noise power, a comfortably readable signal.</div>
+      </details>
+    </div>
+    <div class="problem">
+      <p class="pq"><span class="pn">2.</span> A receiver's noise floor is modelled as Gaussian with $\sigma=0.4$. Using the rule that about $99.7\%$ of samples fall within $\pm3\sigma$ of the mean, what is the largest noise nudge you should expect on essentially every sample?</p>
+      <details class="soln"><summary>Show solution</summary>
+        <ol>
+          <li><b>Pick the band.</b> "Essentially every sample" means the $\pm3\sigma$ window (99.7%).</li>
+          <li><b>Scale by σ.</b> $3\sigma = 3 \times 0.4 = 1.2$.</li>
+        </ol>
+        <div class="ans"><b>Answer:</b> $\pm1.2$ — almost no sample strays beyond this, so a clean signal must rise well above 1.2 to survive.</div>
+      </details>
+    </div>
+    <div class="problem">
+      <p class="pq"><span class="pn">3.</span> An amplifier raises a signal's voltage by a factor of $5$. Voltage gain in decibels is $20\log_{10}(V_1/V_0)$. What is the gain in dB?</p>
+      <details class="soln"><summary>Show solution</summary>
+        <ol>
+          <li><b>Use the voltage form.</b> Voltage (an amplitude) uses the $20\log_{10}$ rule, not $10\log_{10}$.</li>
+          <li><b>Plug in the ratio.</b> $20\log_{10}(5)$.</li>
+        </ol>
+        <div class="ans"><b>Answer:</b> $\approx 14.0$ dB — a 5× voltage boost is a 25× power boost, and $10\log_{10}(25)$ gives the same 14 dB.</div>
+      </details>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================= -->
+<!-- 1. GENERATING SYNTHETIC SIGNALS -->
+<!-- ============================================================= -->
+<section class="chapter" id="generate">
+  <span class="era">Chapter 1 · The signal is an array</span>
+  <h2>Before you receive a signal, learn to build one</h2>
+  <p class="who">NumPy · the four numbers behind every waveform: sample rate, frequency, amplitude, phase</p>
+
+  <div class="beats">
+    <div class="beat known"><div class="tag">What an SDR actually gives you</div>
+      <p>A software-defined radio does one thing: it measures the voltage at its antenna many millions of times a second and hands you the numbers. There is no "station", no "audio" — just a long array of samples. To understand what comes <i>in</i>, it pays to first generate signals you already understand and inspect them. Everything in this companion is <code class="inlinecode">numpy</code> arrays and a plot.</p></div>
+    <div class="beat idea"><div class="tag">The idea</div>
+      <p>A pure tone is the simplest signal: $x(t)=A\sin(2\pi f t+\phi)$ — the height of a spinning point, built symbol by symbol in Chapter 0. In code, time is not continuous — it is a grid of instants $t_n = n/f_s$, where the <b>sample rate</b> $f_s$ is how many samples per second you take. Pick $f_s$, build the time vector, and the whole waveform is one line of NumPy.</p></div>
+    <div class="beat test"><div class="tag">The test</div>
+      <p>Add two tones and you get a beat pattern; add Gaussian noise and you get something that looks like a real capture. Real receivers see a <b>sum</b> of every signal in range plus noise — and yet, as later chapters show, the Fourier transform pulls each one back out. Building that sum yourself first makes the decode obvious.</p></div>
+    <div class="beat found"><div class="tag">What it founds</div>
+      <p>Every script in this folder begins exactly here. <span class="fileref">nfc_modulation_demo.py</span> synthesizes an entire ISO 14443 waveform from <code class="inlinecode">np.sin</code> and a gate array before it ever touches a capture — so you can see each layer of abstraction in isolation. Synthesis is the debugger of DSP.</p></div>
+  </div>
+
+  <p class="codecap">A single tone, the way every lab below starts — and the way <span class="fileref">nfc_modulation_demo.py</span> builds its 847.5&nbsp;kHz subcarrier:</p>
+<pre class="code">import numpy as np
+
+fs = 1_000_000          # sample rate: 1,000,000 samples per second (1 MS/s)
+f  = 50_000             # tone frequency: 50 kHz
+A  = 1.0                # amplitude
+phi = 0.0               # starting phase (radians)
+
+n = 4096                       # number of samples to generate
+t = np.arange(n) / fs          # time vector in seconds: [0, 1/fs, 2/fs, ...]
+x = A * np.sin(2*np.pi*f*t + phi)
+
+# x is now a real-valued array. That is the entire signal.
+# samples per cycle = fs / f = 20  -> 20 dots trace out each sine period</pre>
+
+  <div class="lab">
+    <h3><span class="dot"></span>Build a waveform — tone, two-tone, and noise</h3>
+    <p class="hint">Choose a waveform and sweep its parameters. The plot is the literal array <code class="inlinecode">x</code> from the code above. Watch the readout: when <b>samples per cycle</b> drops near 2, the sine starts to look jagged — that is the cliff Chapter 2 is about. Add noise to see what a real capture looks like before any processing.</p>
+    <div class="controls">
+      <div class="ctl">
+        <label>Waveform</label>
+        <select id="syn_kind">
+          <option value="sine">single tone — A·sin(2πft)</option>
+          <option value="two">two tones (a beat pattern)</option>
+          <option value="square">square wave (odd harmonics)</option>
+        </select>
+      </div>
+      <div class="ctl">
+        <label>Frequency f <b><span id="syn_flbl">50</span> kHz</b></label>
+        <input id="syn_f" type="range" min="2" max="240" step="1" value="50">
+      </div>
+      <div class="ctl">
+        <label>Second tone f₂ <b><span id="syn_f2lbl">57</span> kHz</b></label>
+        <input id="syn_f2" type="range" min="2" max="240" step="1" value="57">
+      </div>
+      <div class="ctl">
+        <label>Amplitude A <b><span id="syn_albl">1.00</span></b></label>
+        <input id="syn_a" type="range" min="0.1" max="1.5" step="0.05" value="1">
+      </div>
+      <div class="ctl">
+        <label>Noise σ <b><span id="syn_nlbl">0.00</span></b></label>
+        <input id="syn_n" type="range" min="0" max="0.8" step="0.02" value="0">
+      </div>
+    </div>
+    <div class="readout">
+      <div class="stat"><div class="k">Sample rate</div><div class="v">1 <small>MS/s</small></div></div>
+      <div class="stat"><div class="k">Samples / cycle</div><div class="v" id="syn_spc">20</div></div>
+      <div class="stat"><div class="k">Nyquist limit</div><div class="v">500 <small>kHz</small></div></div>
+      <div class="stat"><div class="k">SNR (approx)</div><div class="v" id="syn_snr">∞ <small>dB</small></div></div>
+    </div>
+    <div id="syn_plot" class="plot"></div>
+    <div class="verdict" id="syn_verdict"></div>
+  </div>
+
+  <div class="deriv">
+    <h4><span class="ic">∴</span> Why the time vector is <code class="inlinecode">np.arange(n)/fs</code></h4>
+    <p class="lead">Three lines turn "a frequency in Hz" into "an array of voltages".</p>
+    <ol>
+      <li>A real sensor samples at fixed instants spaced $\Delta t = 1/f_s$ apart. <b><code class="inlinecode">np.arange(n)</code></b> is $[0,1,2,\dots]$ sample indices; dividing by $f_s$ turns them into seconds.</li>
+      <li>The argument of the sine must accumulate $2\pi$ radians of phase per cycle, $f$ cycles per second: hence $2\pi f t$. One full cycle every $1/f$ seconds.</li>
+      <li>Sampling means evaluating the continuous $\sin$ only on that grid. The array <b>is</b> the signal as far as the computer — and the radio — is concerned. Nothing exists between the samples.</li>
+    </ol>
+    <div class="concl"><b>Takeaway:</b> change $f_s$ and you change how finely time is diced; change $f$ and you change how fast phase spins. Those two numbers, and their ratio, govern everything from here on.</div>
+  </div>
+
+  <div class="mathnote">
+    <h4>The noise slider and the SNR readout, precisely</h4>
+    <p>"Noise σ" adds an independent draw from Chapter 0's bell curve to every sample: <code class="inlinecode">x + np.random.normal(0, sigma, n)</code>. σ is the typical size of each bump, and σ² is the noise <b>power</b>. The tone's power is $A^2/2$ — the average of $\sin^2$ over a cycle is exactly ½ — so the SNR stat above is $10\log_{10}\!\big(\tfrac{A^2/2}{\sigma^2}\big)$ in decibels (both defined in Chapter 0). Crank σ up and watch the dB fall: every "weak signal" in the rest of this companion is exactly this picture.</p>
+  </div>
+
+  <h3 class="subhead">Practice problems</h3>
+  <div class="problems">
+    <div class="problem">
+      <p class="pq"><span class="pn">1.</span> You generate a $125$ kHz tone captured at $f_s = 2$ MS/s. The "samples per cycle" readout is $f_s/f$. How many samples trace out each period of the sine?</p>
+      <details class="soln"><summary>Show solution</summary>
+        <ol>
+          <li><b>Form the ratio.</b> samples/cycle $= f_s / f = 2{,}000{,}000 / 125{,}000$.</li>
+          <li><b>Divide.</b> $= 16$.</li>
+        </ol>
+        <div class="ans"><b>Answer:</b> $16$ samples per cycle — far above the Nyquist floor of 2, so the sine looks smooth rather than jagged.</div>
+      </details>
+    </div>
+    <div class="problem">
+      <p class="pq"><span class="pn">2.</span> A synthetic tone has amplitude $A=0.5$ and the noise slider is set to $\sigma=0.1$. With signal power $A^2/2$ and noise power $\sigma^2$, what SNR (in dB) does the lab report?</p>
+      <details class="soln"><summary>Show solution</summary>
+        <ol>
+          <li><b>Signal power.</b> $A^2/2 = 0.25/2 = 0.125$.</li>
+          <li><b>Noise power.</b> $\sigma^2 = 0.01$.</li>
+          <li><b>dB ratio.</b> $10\log_{10}(0.125/0.01) = 10\log_{10}(12.5)$.</li>
+        </ol>
+        <div class="ans"><b>Answer:</b> $\approx 11.0$ dB — even at half amplitude the tone sits well above this light noise.</div>
+      </details>
+    </div>
+    <div class="problem">
+      <p class="pq"><span class="pn">3.</span> You build a time vector with $t = $ <code class="inlinecode">np.arange(n)/fs</code> at $f_s = 1$ MS/s and want exactly $10$ ms of signal. How many samples $n$ must you generate?</p>
+      <details class="soln"><summary>Show solution</summary>
+        <ol>
+          <li><b>Duration relation.</b> The capture spans $n/f_s$ seconds, so $n = \text{duration} \times f_s$.</li>
+          <li><b>Plug in.</b> $n = 0.010 \text{ s} \times 1{,}000{,}000 \text{ /s}$.</li>
+        </ol>
+        <div class="ans"><b>Answer:</b> $n = 10{,}000$ samples — each millisecond of air time costs 1000 samples at this rate.</div>
+      </details>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================= -->
+<!-- 2. SAMPLING & NYQUIST -->
+<!-- ============================================================= -->
+<section class="chapter" id="sampling">
+  <span class="era">Chapter 2 · The one rule you cannot break</span>
+  <h2>Sampling and the Nyquist limit</h2>
+  <p class="who">Why a 600 kHz tone can masquerade as a 400 kHz tone — and how the decoders pick their sample rate</p>
+
+  <div class="beats">
+    <div class="beat known"><div class="tag">What was known</div>
+      <p>Sampling throws away everything between the sample instants. The astonishing result — the Nyquist–Shannon theorem — is that nothing is lost <i>provided</i> the signal contains no frequency at or above half the sample rate. That half-rate, $f_s/2$, is the <b>Nyquist limit</b>. Below it, the samples determine the waveform uniquely; above it, they lie.</p></div>
+    <div class="beat idea"><div class="tag">The idea</div>
+      <p>A tone above Nyquist does not vanish — it <b>aliases</b>, folding back to a lower frequency that fits the samples equally well. A 600 kHz tone sampled at 1 MS/s is indistinguishable from a 400 kHz tone: every sample agrees. The radio cannot tell them apart, so an analog <b>anti-alias filter</b> must remove the out-of-band energy before the ADC.</p></div>
+    <div class="beat test"><div class="tag">The test</div>
+      <p>The folding formula is exact: an input at $f$ appears at $f_\text{alias}=\lvert f - f_s\,\text{round}(f/f_s)\rvert$. Push $f$ past $f_s/2$ in the lab and watch the reconstructed tone slide <i>back down</i>. This is also how a cheap RTL-SDR can "see" a signal you tuned past — and why undersampling on purpose (bandpass sampling) is a real technique.</p></div>
+    <div class="beat found"><div class="tag">What it founds</div>
+      <p>Every decoder here picks a sample rate well above its symbol rate. <span class="fileref">decode_fsk.py</span> captures at 2&nbsp;MS/s for a 50&nbsp;ksym/s link — 40 <code class="inlinecode">samples/symbol</code>. That oversampling is what lets it average each symbol (a boxcar matched filter) and slice cleanly under noise.</p></div>
+  </div>
+
+  <p class="codecap">Sample rate vs. symbol rate is the first thing every script computes — straight from <span class="fileref">decode_fsk.py</span>:</p>
+<pre class="code">fs       = 2e6            # capture sample rate: 2 MS/s
+sym_rate = 50_000        # on-air symbol (bit) rate: 50 ksym/s
+sps      = int(round(fs / sym_rate))   # = 40 samples per symbol
+nyquist  = fs / 2        # 1 MHz: nothing above this can be represented
+
+# the alias frequency of an arbitrary input tone f:
+def alias(f, fs):
+    return abs(f - fs * round(f / fs))   # folds f into [0, fs/2]
+
+alias(600e3, 1e6)   # -> 400000.0  (a 600 kHz tone looks like 400 kHz)
+alias(1.3e6, 1e6)   # -> 300000.0  (well above Nyquist, still aliases down)</pre>
+
+  <div class="lab">
+    <h3><span class="dot"></span>Watch a tone alias past Nyquist</h3>
+    <p class="hint">The grey curve is the <i>true</i> analog tone (drawn finely). The dots are what the ADC actually records at sample rate $f_s$. The dashed line is the lowest-frequency sine that fits those dots — the <b>alias</b>. Below Nyquist they coincide. Drag the frequency past $f_s/2$ and the dashed reconstruction folds back down, while the dots stop tracking the true tone.</p>
+    <div class="controls">
+      <div class="ctl">
+        <label>Signal frequency f <b><span id="nyq_flbl">150</span> kHz</b></label>
+        <input id="nyq_f" type="range" min="10" max="950" step="5" value="150">
+      </div>
+      <div class="ctl">
+        <label>Sample rate fₛ <b><span id="nyq_fslbl">1.00</span> MS/s</b></label>
+        <input id="nyq_fs" type="range" min="0.4" max="2.0" step="0.05" value="1">
+      </div>
+    </div>
+    <div class="readout">
+      <div class="stat"><div class="k">Nyquist fₛ/2</div><div class="v"><span id="nyq_ny">500</span> <small>kHz</small></div></div>
+      <div class="stat"><div class="k">Apparent (alias) freq</div><div class="v"><span id="nyq_al">150</span> <small>kHz</small></div></div>
+      <div class="stat"><div class="k">Samples / cycle</div><div class="v" id="nyq_spc">6.7</div></div>
+    </div>
+    <div id="nyq_plot" class="plot"></div>
+    <div class="verdict" id="nyq_verdict"></div>
+  </div>
+
+  <div class="mathnote">
+    <h4>Where the folding formula comes from</h4>
+    <p>Between one sample and the next ($1/f_s$ seconds), a tone at $f$ advances $f/f_s$ cycles. <b>Whole cycles are invisible</b> — the wave is back at the same height when the sampler looks again — so only the leftover <i>fraction</i> of a cycle leaves a trace. In $f_\text{alias}=\lvert f - f_s\,\text{round}(f/f_s)\rvert$, the $\text{round}(f/f_s)$ counts the nearest whole number of cycles completed per sample interval, and subtracting $f_s$ times it removes them. The absolute value is there because a real-valued sampler can't tell a leftover of $+0.4$ cycles from $-0.4$ — spinning the other way produces the same heights. (Complex IQ sampling, Chapter 3, <i>can</i> tell the directions apart — that's why it gets the full $f_s$ of bandwidth.)</p>
+  </div>
+
+  <div class="mathnote">
+    <h4>Rule of thumb</h4>
+    <p>To represent a signal of bandwidth $B$ you need $f_s > 2B$. For a <b>complex (IQ)</b> stream — Chapter 3 — the usable bandwidth is the <i>full</i> $f_s$, not $f_s/2$, because positive and negative frequencies are distinct. That doubling is one of the quiet superpowers of complex sampling, and why SDRs almost always deliver IQ.</p>
+  </div>
+
+  <h3 class="subhead">Practice problems</h3>
+  <div class="problems">
+    <div class="problem">
+      <p class="pq"><span class="pn">1.</span> You want to capture a real-valued signal occupying a bandwidth of $B = 2.4$ MHz. By the Nyquist–Shannon rule $f_s > 2B$, what is the minimum real sample rate you must set?</p>
+      <details class="soln"><summary>Show solution</summary>
+        <ol>
+          <li><b>Apply the rule.</b> A real signal needs $f_s > 2B$.</li>
+          <li><b>Compute.</b> $2B = 2 \times 2.4 = 4.8$ MHz.</li>
+        </ol>
+        <div class="ans"><b>Answer:</b> just above $4.8$ MS/s — anything lower folds the top of the band back down as aliasing.</div>
+      </details>
+    </div>
+    <div class="problem">
+      <p class="pq"><span class="pn">2.</span> A $1.8$ MHz tone is sampled at $f_s = 1$ MS/s — well above Nyquist. Using the folding formula $f_\text{alias} = \lvert f - f_s\,\text{round}(f/f_s)\rvert$, what apparent frequency does the ADC record?</p>
+      <details class="soln"><summary>Show solution</summary>
+        <ol>
+          <li><b>Cycles per sample interval.</b> $f/f_s = 1.8/1.0 = 1.8$, so $\text{round}(1.8) = 2$.</li>
+          <li><b>Subtract the whole cycles.</b> $\lvert 1.8\text{ MHz} - 1\text{ MHz}\times 2\rvert = \lvert -0.2\text{ MHz}\rvert$.</li>
+        </ol>
+        <div class="ans"><b>Answer:</b> $200$ kHz — the unfiltered 1.8 MHz tone masquerades as a 200 kHz signal, which is why an anti-alias filter is mandatory.</div>
+      </details>
+    </div>
+    <div class="problem">
+      <p class="pq"><span class="pn">3.</span> Bandpass-sampling on purpose: a $5.5$ MHz signal is digitized at only $f_s = 4$ MS/s. Where in the first Nyquist zone does it land, by $f_\text{alias} = \lvert f - f_s\,\text{round}(f/f_s)\rvert$?</p>
+      <details class="soln"><summary>Show solution</summary>
+        <ol>
+          <li><b>Nearest whole cycles.</b> $f/f_s = 5.5/4 = 1.375$, so $\text{round} = 1$.</li>
+          <li><b>Fold down.</b> $\lvert 5.5\text{ MHz} - 4\text{ MHz}\times 1\rvert = 1.5$ MHz.</li>
+        </ol>
+        <div class="ans"><b>Answer:</b> $1.5$ MHz — undersampling deliberately translates a high-frequency band down to baseband, the trick behind bandpass sampling.</div>
+      </details>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================= -->
+<!-- 3. COMPLEX NUMBERS -->
+<!-- ============================================================= -->
+<section class="chapter" id="complex">
+  <span class="era">Chapter 3 · The heart of SDR</span>
+  <h2>Complex numbers, or: why a radio sample has two parts</h2>
+  <p class="who">From the number line to $e^{i\theta}=\cos\theta+i\sin\theta$ — and why your SDR delivers I and Q</p>
+
+  <div class="beats">
+    <div class="beat known"><div class="tag">Where this is going</div>
+      <p>Every sample from an SDR is a <b>complex number</b> — a pair $(I, Q)$. Not a quirk of the hardware: it is the most natural language for a signal that is fundamentally a <i>rotation</i>. This chapter builds complex numbers from scratch, the way the <a class="inline" href="https://greatscottgadgets.com/sdr/6/" target="_blank" rel="noopener">Great Scott Gadgets SDR series</a> does — as the answer to a question about turning.</p></div>
+    <div class="beat idea"><div class="tag">The question</div>
+      <p>On the ordinary number line, multiplication does two things. Scaling: $2\times 5$ moves you out along the line. And <b>rotation</b>: $-1 \times 5 = -5$ flips you to the other side — a half-turn through 180°. If multiplying by $-1$ is a half-turn, what number is a <i>quarter</i>-turn?</p></div>
+    <div class="beat test"><div class="tag">The answer</div>
+      <p>Call the quarter-turn $z$. Doing it twice is a half-turn, i.e. multiplying by $-1$: so $z \times z = -1$, meaning $z=\sqrt{-1}$. That number is $i$. A quarter-turn off the real line lands you on a brand-new axis — the <b>imaginary axis</b> — and complex numbers are simply points on the resulting 2-D plane.</p></div>
+    <div class="beat found"><div class="tag">What it founds</div>
+      <p>Multiplying by $i$ over and over walks you around a circle: $1\to i\to -1\to -i\to 1$. Repeated rotation is exactly what a radio carrier does, so $e^{i\omega t}$ — a number endlessly rotating — <i>is</i> the carrier. The two coordinates of that spinning point are the I and Q your SDR reports.</p></div>
+  </div>
+
+  <div class="subhead"><span class="n">3.1</span> Multiplication can rotate, not just scale</div>
+  <p class="leadin">Start on the number line — all the real numbers, rational and irrational, laid out left to right. Take the point at $5$. Multiply by $-1$: you land at $-5$. You can read that two ways. Either you scaled by $1$ and flipped sign, or — more usefully — you <b>rotated the point a half-turn</b> about the origin, swinging it 180° through the upper or lower half-plane to the far side. Multiplying by $-1$ is a 180° rotation.</p>
+
+  <div class="deriv">
+    <h4><span class="ic">∴</span> Solving for the quarter-turn</h4>
+    <p class="lead">If a half-turn is "$\times(-1)$", a quarter-turn must be some number $z$ you apply twice to get a half-turn.</p>
+    <ol>
+      <li>Two quarter-turns make a half-turn: applying $z$ twice equals multiplying by $-1$. So for any point, $z\times(z\times \text{point}) = -\text{point}$, i.e. <b>$z^2 = -1$</b>.</li>
+      <li>Solve: $z = \sqrt{-1}$. No real number squares to a negative, so $z$ cannot live on the number line — it points <b>off</b> it, at 90°.</li>
+      <li>Name it $i$ (for "imaginary", though there is nothing imaginary about a quarter-turn). By construction <b>$i^2=-1$</b>.</li>
+      <li>Then $1\cdot i$ sits at the point $(0,1)$, $2i$ at $(0,2)$, $3i$ at $(0,3)$ — the imaginary numbers are a <b>vertical axis</b>, perpendicular to the reals.</li>
+    </ol>
+    <div class="concl"><b>Conclusion:</b> a complex number $a+bi$ is a point in a plane: $a$ along the real (horizontal) axis, $b$ along the imaginary (vertical) axis. <b>Addition</b> is just moving: $1+2i$ means start at $(1,0)$ and step up to $(1,2)$.</div>
+  </div>
+
+  <p class="leadin">And the rotation keeps going. Start at $i$, the point $(0,1)$, and multiply by $i$ again: $i\times i = -1$, landing at $(-1,0)$. Once more: $\times i$ gives $-i$ at $(0,-1)$. Again: back to $1$. Multiplying by $i$ spins you 90° each time, forever — $1, i, -1, -i, 1, i, \dots$. A number whose powers cycle round a circle is the natural way to model anything <b>periodic</b>, which is to say: every wave.</p>
+
+  <p class="codecap">NumPy speaks complex natively — <code class="inlinecode">1j</code> is $i$. Multiplying by <code class="inlinecode">1j</code> rotates by 90°:</p>
+<pre class="code">import numpy as np
+
+z = 1 + 2j               # the point (1, 2):  real part 1, imaginary part 2
+z.real, z.imag           # -> (1.0, 2.0)
+np.abs(z)                # -> 2.236   magnitude  = distance from origin = sqrt(1+4)
+np.angle(z)              # -> 1.107   angle (radians) from the +real axis
+
+1j * 1j                  # -> (-1+0j)        i*i = -1   (the quarter-turn, squared)
+1j * (3+0j)              # -> (0+3j)         rotate 3 a quarter-turn -> 3i
+[1j**k for k in range(5)]# -> 1, i, -1, -i, 1   round and round you go</pre>
+
+  <div class="lab">
+    <h3><span class="dot"></span>The complex plane — rotate a point a quarter-turn at a time</h3>
+    <p class="hint">Drag the angle. The white point is $e^{i\theta}$ on the unit circle; its shadow on the horizontal <b>I (real)</b> axis is $\cos\theta$, on the vertical <b>Q (imaginary)</b> axis is $\sin\theta$. The "×i" button rotates the current point a quarter-turn so you can watch $1\to i\to -1\to -i$. Notice the magnitude never changes — rotation preserves distance from the origin.</p>
+    <div class="controls">
+      <div class="ctl">
+        <label>Angle θ <b><span id="cx_dlbl">45</span>° &nbsp;=&nbsp; <span id="cx_rlbl">0.785</span> rad</b></label>
+        <input id="cx_ang" type="range" min="0" max="720" step="1" value="45">
+      </div>
+    </div>
+    <div class="btnrow">
+      <button class="act" id="cx_muli">× i&nbsp; (rotate +90°)</button>
+      <button class="act" id="cx_reset">reset to 0°</button>
+    </div>
+    <div class="readout">
+      <div class="stat"><div class="k">z = cos θ + i·sin θ</div><div class="v" id="cx_z" style="font-size:15px">0.71 + 0.71i</div></div>
+      <div class="stat"><div class="k">I = cos θ</div><div class="v" id="cx_i">0.71</div></div>
+      <div class="stat"><div class="k">Q = sin θ</div><div class="v" id="cx_q">0.71</div></div>
+      <div class="stat"><div class="k">|z| (magnitude)</div><div class="v" id="cx_mag">1.00</div></div>
+    </div>
+    <figure><canvas id="cx_canvas" width="900" height="430"></canvas>
+      <figcaption>The unit circle. Amber leg = cos θ (the I, in-phase component); green leg = sin θ (the Q, quadrature component); white radius = the complex number itself.</figcaption></figure>
+  </div>
+
+  <div class="subhead"><span class="n">3.2</span> Measuring the turn — radians, and why the base is $e$</div>
+  <p class="leadin">To describe <i>where</i> on the circle you are, you need an angle. You could use degrees (a full turn = 360), but there is a more natural unit. A <b>radian</b> measures an angle by arc length on a circle of radius 1: walk a distance equal to the radius along the rim, and the angle you have swept is 1 radian. Since the full circumference is $2\pi r$, a whole turn is $2\pi r / r = 2\pi$ radians ≈ 6.28. Half a turn is $\pi$; a quarter-turn (our friend $i$) is $\pi/2$.</p>
+
+  <p class="leadin">Now model rotation as raising some base to a power: $\text{base}^{\theta}$ steps you $\theta$ units around. The base that makes the calculus clean is <b>$e \approx 2.718$</b>, the natural base of growth. The function $e^x$ is the one whose slope equals its own height everywhere — its rate of change <i>is</i> itself. Feed it an imaginary exponent and that "growth" turns into pure rotation: $e^{i\theta}$ doesn't grow, it <b>spins</b>, landing exactly $\theta$ radians around the unit circle.</p>
+
+  <div class="deriv">
+    <h4><span class="ic">∴</span> Euler's formula and Euler's identity</h4>
+    <p class="lead">Two equivalent ways to move in a circle — the relation Euler discovered.</p>
+    <ol>
+      <li>Drop a line from the point $e^{i\theta}$ to the real axis: a right triangle with hypotenuse 1 (the radius). Its horizontal leg is $\cos\theta$, its vertical leg is $\sin\theta$ (SOH-CAH-TOA on a unit hypotenuse — the same circle definition Chapter 0 built sine from).</li>
+      <li>The horizontal position is the real part, the vertical is the imaginary part. So the point is <b>$e^{i\theta} = \cos\theta + i\sin\theta$</b> — Euler's formula. This is the bridge between rotation and the two sinusoids.</li>
+      <li>Put in a half-turn, $\theta=\pi$: $\cos\pi=-1$, $\sin\pi=0$, giving $e^{i\pi} = -1$, i.e. <b>$e^{i\pi}+1=0$</b> — Euler's identity, tying $e$, $i$, $\pi$, $1$ and $0$ together. A full turn $\theta=2\pi$ returns $e^{i\,2\pi}=1$.</li>
+    </ol>
+    <div class="concl"><b>Intuition (BetterExplained):</b> $1\cdot e^{i\pi}$ reads as "start at 1, and instead of growing, rotate for $\pi$ units of time" — $\pi$ radians, a half-circle — arriving at $-1$. Imaginary exponents rotate; real exponents grow.</div>
+  </div>
+
+  <p class="leadin">So a steadily rotating complex number, $e^{i\,2\pi f t}$, traces the unit circle $f$ times a second. Whenever you see $e^{i\omega t}$, picture a point spinning — or, unrolled along a time axis, a three-dimensional <b>helix</b> whose two shadows are a cosine (the I axis) and a sine (the Q axis). That helix is the cleanest possible model of a carrier wave.</p>
+
+  <p class="codecap">A complex carrier in one line — its real part is a cosine, its imaginary part a sine, 90° apart:</p>
+<pre class="code">fs = 1_000_000
+f  = 50_000
+t  = np.arange(2000) / fs
+
+z = np.exp(1j * 2*np.pi*f * t)   # a rotating phasor: e^{i·2πft}
+
+I = z.real        # = cos(2πft)   the in-phase component
+Q = z.imag        # = sin(2πft)   the quadrature component, a quarter-cycle behind
+
+# the radio stores exactly these two arrays. |z| is the amplitude envelope,
+# np.angle(z) is the instantaneous phase. Change in phase per sample = frequency:
+inst_freq = np.angle(z[1:] * np.conj(z[:-1]))   # <- the FM demod in decode_fsk.py</pre>
+
+  <div class="lab">
+    <h3><span class="dot"></span>The spinning phasor and its two shadows</h3>
+    <p class="hint">A point rotates around the unit circle at the frequency you set. Its horizontal shadow traces the <b>cosine (I)</b> in amber; its vertical shadow traces the <b>sine (Q)</b> in green. This is $e^{i\omega t}$ unrolled in time — the single object behind both sinusoids. Press play and watch one rotation become two waves a quarter-cycle apart.</p>
+    <div class="controls">
+      <div class="ctl">
+        <label>Rotation rate (cycles shown) <b><span id="ph_flbl">2.0</span></b></label>
+        <input id="ph_f" type="range" min="0.5" max="6" step="0.5" value="2">
+      </div>
+      <div class="ctl">
+        <label>Spin speed <b><span id="ph_slbl">1.0</span>×</b></label>
+        <input id="ph_spd" type="range" min="0" max="3" step="0.1" value="1">
+      </div>
+    </div>
+    <div class="btnrow">
+      <button class="act" id="ph_play">⏸ pause</button>
+    </div>
+    <figure><canvas id="ph_canvas" width="900" height="360"></canvas>
+      <figcaption>Left: the phasor on the complex plane. Right: its I (cos, amber) and Q (sin, green) projections scrolling out in time — the same rotation, seen two ways.</figcaption></figure>
+  </div>
+
+  <div class="mathnote">
+    <h4>The payoff — I/Q, in-phase and quadrature</h4>
+    <p>This is why an SDR sample is complex. The hardware multiplies the incoming RF by both a cosine and a sine of the tuner frequency (90° apart — "in quadrature") and low-pass filters each, giving two streams: <b>I</b> (in-phase, the real axis) and <b>Q</b> (quadrature, the imaginary axis). Together they are one complex number per instant. Because the rotation direction is preserved, $+f$ and $-f$ are <b>distinguishable</b> — so complex sampling captures the full bandwidth $f_s$ and can tell a signal above the tuned frequency from one below it. The point on the unit circle is sometimes called the magnitude, modulus, amplitude, or absolute value; its two coordinates are the I and Q the rest of this companion decodes.</p>
+  </div>
+
+  <h3 class="subhead">Practice problems</h3>
+  <div class="problems">
+    <div class="problem">
+      <p class="pq"><span class="pn">1.</span> A single IQ sample reads $z = 3 + 4i$ (so $I=3$, $Q=4$). Using $\lvert z\rvert = \sqrt{I^2+Q^2}$ and $\angle z = \arctan(Q/I)$, find the sample's magnitude and phase (in degrees).</p>
+      <details class="soln"><summary>Show solution</summary>
+        <ol>
+          <li><b>Magnitude.</b> $\lvert z\rvert = \sqrt{3^2+4^2} = \sqrt{25} = 5$.</li>
+          <li><b>Phase.</b> $\angle z = \arctan(4/3) = 0.927$ rad.</li>
+          <li><b>Convert to degrees.</b> $0.927 \times 180/\pi \approx 53.1°$.</li>
+        </ol>
+        <div class="ans"><b>Answer:</b> $\lvert z\rvert = 5$, $\angle z \approx 53.1°$ — exactly what <code class="inlinecode">np.abs</code> and <code class="inlinecode">np.angle</code> return for this point.</div>
+      </details>
+    </div>
+    <div class="problem">
+      <p class="pq"><span class="pn">2.</span> A phasor has rotated to angle $\theta = \tfrac{3\pi}{2}$ radians (three-quarters of a turn). Using Euler's formula $e^{i\theta} = \cos\theta + i\sin\theta$, what are its $I$ and $Q$ coordinates?</p>
+      <details class="soln"><summary>Show solution</summary>
+        <ol>
+          <li><b>In-phase part.</b> $I = \cos(3\pi/2) = 0$.</li>
+          <li><b>Quadrature part.</b> $Q = \sin(3\pi/2) = -1$.</li>
+        </ol>
+        <div class="ans"><b>Answer:</b> $z = 0 - 1i$ — the point sits at the bottom of the unit circle, the $-i$ position three quarter-turns around from 1.</div>
+      </details>
+    </div>
+    <div class="problem">
+      <p class="pq"><span class="pn">3.</span> An IQ stream at $f_s = 2$ MS/s advances by $\Delta\phi = 0.5$ rad of phase per sample, measured via $\angle(z_n\,\overline{z_{n-1}})$. Frequency is the rate of phase change: $f = \Delta\phi \cdot f_s / 2\pi$. What tone does this represent?</p>
+      <details class="soln"><summary>Show solution</summary>
+        <ol>
+          <li><b>Apply the relation.</b> $f = \Delta\phi \cdot f_s / 2\pi = 0.5 \times 2{,}000{,}000 / (2\pi)$.</li>
+          <li><b>Evaluate.</b> $= 1{,}000{,}000 / 6.2832$.</li>
+        </ol>
+        <div class="ans"><b>Answer:</b> $\approx 159$ kHz — the instantaneous-frequency operator turns per-sample phase steps directly into the demodulated tone.</div>
+      </details>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================= -->
+<!-- 4. FOURIER TRANSFORMS -->
+<!-- ============================================================= -->
+<section class="chapter" id="fourier">
+  <span class="era">Chapter 4 · From time to frequency</span>
+  <h2>The Fourier transform — every signal is a sum of spinning phasors</h2>
+  <p class="who">np.fft · turning a wall of samples into a spectrum, and reading a 847.5 kHz line straight off it</p>
+
+  <div class="beats">
+    <div class="beat known"><div class="tag">What was known</div>
+      <p>Chapter 3 built one rotating phasor $e^{i\omega t}$. Fourier's claim is that <i>any</i> signal — however jagged — is a sum of such phasors at different frequencies, each with its own amplitude and starting phase. The <b>Fourier transform</b> is the machine that, given the samples, hands back that recipe: how much of each frequency is present.</p></div>
+    <div class="beat idea"><div class="tag">The idea</div>
+      <p>To measure "how much 50 kHz is in this signal", multiply the signal by a 50 kHz phasor and sum. If the signal contains that frequency, the products line up and the sum is large; if not, they cancel to nearly zero. Do this for every frequency bin and you get the <b>spectrum</b>. The <b>FFT</b> is just a fast algorithm for that sum — $O(N\log N)$ instead of $O(N^2)$.</p></div>
+    <div class="beat test"><div class="tag">The test</div>
+      <p>Sum three tones, take the FFT, and three sharp spikes appear at exactly those frequencies — the transform un-mixes what addition mixed. Bin spacing is $f_s/N$: more samples buys finer frequency resolution. With complex IQ input, the spectrum is two-sided, so $+f$ and $-f$ are separate spikes.</p></div>
+    <div class="beat found"><div class="tag">What it founds</div>
+      <p><span class="fileref">decode_nfc.py</span> opens each card response with a power spectrum (<code class="inlinecode">scipy.signal.welch</code>) and the 847.5&nbsp;kHz subcarrier line appears as a bright peak — direct confirmation the card is load-modulating at $f_c/16$, before a single bit is decoded. The FFT is the universal "what's in this capture?" tool.</p></div>
+  </div>
+
+  <p class="codecap">The whole transform is three lines — and the PSD trick <span class="fileref">decode_nfc.py</span> uses to find the subcarrier:</p>
+<pre class="code">X     = np.fft.fft(x)                 # complex spectrum, one bin per frequency
+freqs = np.fft.fftfreq(len(x), 1/fs)  # the Hz value of each bin
+mag   = np.abs(X)                     # amplitude at each frequency
+
+# bin spacing (frequency resolution) = fs / N
+# peak frequency:
+f_peak = freqs[np.argmax(mag[:len(x)//2])]
+
+# decode_nfc.py instead uses Welch's method (averaged FFTs = smoother PSD):
+from scipy.signal import welch
+f_psd, p_psd = welch(envelope, fs=fs, nperseg=8192)   # 847.5 kHz line pops out</pre>
+
+  <div class="lab">
+    <h3><span class="dot"></span>Add tones, then watch the FFT un-mix them</h3>
+    <p class="hint">Build a signal from up to three tones (top panel, time domain). The bottom panel is its magnitude spectrum, computed with a real DFT in your browser. Each tone you switch on adds exactly one spike at its frequency. Add noise to see the spikes rise above a noisy floor — exactly how a real signal is found.</p>
+    <div class="controls">
+      <div class="ctl">
+        <label>Tone 1 <b><span id="ft_f1lbl">60</span> kHz</b></label>
+        <input id="ft_f1" type="range" min="10" max="240" step="2" value="60">
+      </div>
+      <div class="ctl">
+        <label>Tone 2 <b><span id="ft_f2lbl">140</span> kHz</b> <span id="ft_on2" style="cursor:pointer;color:var(--green)">●on</span></label>
+        <input id="ft_f2" type="range" min="10" max="240" step="2" value="140">
+      </div>
+      <div class="ctl">
+        <label>Tone 3 <b><span id="ft_f3lbl">200</span> kHz</b> <span id="ft_on3" style="cursor:pointer;color:var(--muted)">○off</span></label>
+        <input id="ft_f3" type="range" min="10" max="240" step="2" value="200">
+      </div>
+      <div class="ctl">
+        <label>Noise σ <b><span id="ft_nlbl">0.00</span></b></label>
+        <input id="ft_n" type="range" min="0" max="0.6" step="0.02" value="0">
+      </div>
+    </div>
+    <div class="readout">
+      <div class="stat"><div class="k">N samples</div><div class="v">256</div></div>
+      <div class="stat"><div class="k">Bin spacing fₛ/N</div><div class="v">3.9 <small>kHz</small></div></div>
+      <div class="stat"><div class="k">Tones present</div><div class="v" id="ft_count">2</div></div>
+    </div>
+    <div id="ft_time" class="plot" style="height:200px"></div>
+    <div id="ft_freq" class="plot" style="height:240px"></div>
+  </div>
+
+  <div class="mathnote">
+    <h4>Why a sharp tone makes a sharp spike</h4>
+    <p>Multiplying the signal by a test phasor $e^{-i2\pi f_k t}$ and summing is a <b>correlation</b>: it asks "how aligned is the signal with this frequency?" A matching tone stays perfectly in step over the whole window, so every term adds — a tall spike. A non-matching frequency drifts in and out of phase and its terms cancel. The same correlation logic reappears in <span class="fileref">decode_fsk.py</span>, which cross-correlates the demodulated bits against a known access code to find where a packet starts.</p>
+  </div>
+
+  <div class="mathnote">
+    <h4>Why the bins are fs/N apart — and what Welch trades away</h4>
+    <p>$N$ samples span $N/f_s$ seconds. The DFT's test phasors are precisely the frequencies that complete a <b>whole number</b> of cycles in that window — 0, 1, 2, … — because only those line up with themselves end to end. One cycle per window is $f_s/N$ Hz, so the bins step by $f_s/N$: capture longer and the frequency comb gets finer. Welch's method (the <code class="inlinecode">scipy.signal.welch</code> call above) deliberately goes the other way — it chops the capture into shorter pieces, FFTs each, and averages the results. The noise floor smooths out, making a real peak much easier to trust, at the price of coarser bins: <b>resolution traded for confidence</b>. That is why <span class="fileref">decode_nfc.py</span> uses it just to ask "is the 847.5&nbsp;kHz line there at all?"</p>
+  </div>
+
+  <h3 class="subhead">Practice problems</h3>
+  <div class="problems">
+    <div class="problem">
+      <p class="pq"><span class="pn">1.</span> You FFT a capture of $N = 4096$ samples taken at $f_s = 2$ MS/s. The bin spacing (frequency resolution) is $\Delta f = f_s/N$. How far apart, in Hz, is each FFT bin?</p>
+      <details class="soln"><summary>Show solution</summary>
+        <ol>
+          <li><b>Apply the formula.</b> $\Delta f = f_s/N = 2{,}000{,}000 / 4096$.</li>
+          <li><b>Divide.</b> $\approx 488$ Hz.</li>
+        </ol>
+        <div class="ans"><b>Answer:</b> $\approx 488$ Hz per bin — two tones closer than this would merge into one peak.</div>
+      </details>
+    </div>
+    <div class="problem">
+      <p class="pq"><span class="pn">2.</span> To resolve two carriers only $1$ kHz apart at a sample rate of $f_s = 1$ MS/s, how many samples $N$ must your FFT span, given $\Delta f = f_s/N$?</p>
+      <details class="soln"><summary>Show solution</summary>
+        <ol>
+          <li><b>Solve for N.</b> $N = f_s / \Delta f$.</li>
+          <li><b>Plug in.</b> $N = 1{,}000{,}000 / 1{,}000 = 1000$.</li>
+        </ol>
+        <div class="ans"><b>Answer:</b> $N = 1000$ samples (1 ms of capture) — finer resolution simply means capturing for longer.</div>
+      </details>
+    </div>
+    <div class="problem">
+      <p class="pq"><span class="pn">3.</span> An $N = 8192$-point FFT runs on a $f_s = 2$ MS/s capture. The NFC subcarrier at $847.5$ kHz should appear in bin $k = f \cdot N / f_s$. Which bin holds the peak?</p>
+      <details class="soln"><summary>Show solution</summary>
+        <ol>
+          <li><b>Bin index relation.</b> $k = f \cdot N / f_s$.</li>
+          <li><b>Compute.</b> $k = 847{,}500 \times 8192 / 2{,}000{,}000 \approx 3471$.</li>
+        </ol>
+        <div class="ans"><b>Answer:</b> bin $\approx 3471$ — the bright line <span class="fileref">decode_nfc.py</span> looks for to confirm the card is load-modulating.</div>
+      </details>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================= -->
+<!-- 5. MODULATION -->
+<!-- ============================================================= -->
+<section class="chapter" id="modulation">
+  <span class="era">Chapter 5 · Putting data on a wave</span>
+  <h2>Modulation — making a carrier carry bits</h2>
+  <p class="who">AM · FM · ASK/OOK · FSK · PSK — the five ways to vary a sine, and the demod that reverses each</p>
+
+  <div class="beats">
+    <div class="beat known"><div class="tag">What was known</div>
+      <p>A bare carrier $\cos(2\pi f_c t)$ carries no information — it is the same forever. To send data you must <b>vary</b> one of its three knobs over time: amplitude, frequency, or phase. Each choice is a modulation scheme, and each has a matching demodulator that reads the knob back out.</p></div>
+    <div class="beat idea"><div class="tag">The three knobs</div>
+      <p><b>Amplitude</b> → AM / ASK / OOK: make the carrier louder and softer. <b>Frequency</b> → FM / FSK: shift the pitch between two tones for 0 and 1. <b>Phase</b> → PM / PSK: jump the phase by 180° to flip a bit. The digital versions (ASK, FSK, PSK) just use a few discrete levels of the analog knob.</p></div>
+    <div class="beat test"><div class="tag">The test</div>
+      <p>Switch schemes in the lab and watch the same bit pattern reshape the carrier. The demod is the inverse: AM → take the envelope $|z|$; FSK → take the instantaneous frequency $\angle(z_n\,\overline{z_{n-1}})$; PSK → track the phase. The envelope and inst-freq operators are literally what the decoders call.</p></div>
+    <div class="beat found"><div class="tag">What it founds</div>
+      <p>The three protocols ahead are each a modulation choice: <b>NFC</b> is ASK/OOK (amplitude — a switched subcarrier), <b>Bluetooth LE</b> is GFSK (frequency, smoothed), <b>Wi-Fi</b> is QAM on many subcarriers (amplitude+phase at once). Learn the five knobs and every real signal is a combination of them.</p></div>
+  </div>
+
+  <p class="codecap">Each scheme is one line of NumPy on the carrier — and its demod is one line back. From <span class="fileref">decode_fsk.py</span>:</p>
+<pre class="code">t  = np.arange(n) / fs
+car = np.exp(1j * 2*np.pi*fc * t)        # complex carrier
+
+# --- modulate (msg is the 0/1 bit waveform, sampled at sps samples/bit) ---
+am   = (1 + 0.8*msg) * car                       # AM / ASK: vary amplitude
+ook  = msg * car                                 # OOK: carrier on for 1, off for 0
+fsk  = np.exp(1j*2*np.pi*(fc + dev*(2*msg-1))*t) # 2-FSK: +dev for 1, −dev for 0
+bpsk = np.exp(1j*(2*np.pi*fc*t + np.pi*msg))     # BPSK: 180° phase flip per bit
+
+# --- demodulate ---
+env  = np.abs(z)                                 # AM/OOK: amplitude envelope
+freq = np.angle(z[1:] * np.conj(z[:-1]))         # FSK: instantaneous frequency
+# (decode_fsk.py boxcar-averages `freq` over each symbol, then slices the sign)</pre>
+
+  <div class="lab">
+    <h3><span class="dot"></span>One bit pattern, five modulations</h3>
+    <p class="hint">The top panel is the data — the bit pattern <code class="inlinecode">1 0 1 1 0 0 1 0</code> as a baseband waveform. The bottom panel is the modulated carrier for the scheme you pick. Watch what changes: amplitude (AM/OOK), pitch (FSK), or phase flips (BPSK). The carrier and bit-rate sliders rescale the picture.</p>
+    <div class="controls">
+      <div class="ctl">
+        <label>Scheme</label>
+        <select id="mod_kind">
+          <option value="am">AM — amplitude (analog-style)</option>
+          <option value="ook">OOK/ASK — on-off keying (→ NFC)</option>
+          <option value="fsk">2-FSK — frequency shift (→ Bluetooth)</option>
+          <option value="bpsk">BPSK — 180° phase flips</option>
+        </select>
+      </div>
+      <div class="ctl">
+        <label>Carrier cycles / bit <b><span id="mod_clbl">8</span></b></label>
+        <input id="mod_c" type="range" min="3" max="20" step="1" value="8">
+      </div>
+      <div class="ctl">
+        <label>FSK deviation / AM depth <b><span id="mod_dlbl">0.50</span></b></label>
+        <input id="mod_d" type="range" min="0.1" max="0.9" step="0.05" value="0.5">
+      </div>
+    </div>
+    <div id="mod_msg" class="plot" style="height:150px"></div>
+    <div id="mod_rf" class="plot" style="height:240px"></div>
+    <div class="verdict" id="mod_verdict"></div>
+  </div>
+
+  <div class="mathnote">
+    <h4>The instantaneous-frequency one-liner, unpacked</h4>
+    <p>The expression $\angle(z_n\,\overline{z_{n-1}})$ looks cryptic but is three small moves. Each complex sample is a point on the circle, $z_n = e^{i\phi_n}$. Conjugating flips its spin: $\overline{z_{n-1}} = e^{-i\phi_{n-1}}$. Multiply them and the angles <b>subtract</b>: $z_n\overline{z_{n-1}} = e^{i(\phi_n - \phi_{n-1})}$. So <code class="inlinecode">np.angle</code> of that product is simply $\Delta\phi$ — how much phase advanced in one sample. Frequency <i>is</i> the rate of phase change (Chapter 0: rotation rate), so in Hz it is $\Delta\phi \cdot f_s/2\pi$. For 2-FSK the decoders never even convert: a 1-bit spins the phasor one way ($\Delta\phi>0$), a 0-bit the other, so the <b>sign alone is the bit</b>.</p>
+  </div>
+
+  <h3 class="subhead">Practice problems</h3>
+  <div class="problems">
+    <div class="problem">
+      <p class="pq"><span class="pn">1.</span> A broadcast FM station uses a peak frequency deviation $\Delta f = 75$ kHz and a top audio frequency $f_m = 15$ kHz. Carson's rule estimates the occupied bandwidth as $B \approx 2(\Delta f + f_m)$. What bandwidth does the signal need?</p>
+      <details class="soln"><summary>Show solution</summary>
+        <ol>
+          <li><b>Sum deviation and modulation.</b> $\Delta f + f_m = 75 + 15 = 90$ kHz.</li>
+          <li><b>Double it.</b> $B \approx 2 \times 90 = 180$ kHz.</li>
+        </ol>
+        <div class="ans"><b>Answer:</b> $\approx 180$ kHz — close to the 200 kHz channel spacing the FM band actually allots each station.</div>
+      </details>
+    </div>
+    <div class="problem">
+      <p class="pq"><span class="pn">2.</span> A 2-FSK link sets the "1" tone at $f_c + \Delta f$ and the "0" tone at $f_c - \Delta f$ with deviation $\Delta f = 250$ kHz. How far apart, in frequency, are the two on-air tones?</p>
+      <details class="soln"><summary>Show solution</summary>
+        <ol>
+          <li><b>Separation = (f_c+Δf) − (f_c−Δf).</b> The carrier cancels, leaving $2\Delta f$.</li>
+          <li><b>Compute.</b> $2 \times 250 = 500$ kHz.</li>
+        </ol>
+        <div class="ans"><b>Answer:</b> $500$ kHz between the mark and space tones — the gap the instantaneous-frequency detector slices to recover each bit.</div>
+      </details>
+    </div>
+    <div class="problem">
+      <p class="pq"><span class="pn">3.</span> An AM/OOK card modulates a carrier $f_c = 13.56$ MHz with a subcarrier tone $f_m = 847.5$ kHz. AM produces sidebands at $f_c \pm f_m$. Where do the two sidebands sit?</p>
+      <details class="soln"><summary>Show solution</summary>
+        <ol>
+          <li><b>Upper sideband.</b> $f_c + f_m = 13.56\text{ MHz} + 0.8475\text{ MHz} = 14.4075$ MHz.</li>
+          <li><b>Lower sideband.</b> $f_c - f_m = 13.56\text{ MHz} - 0.8475\text{ MHz} = 12.7125$ MHz.</li>
+        </ol>
+        <div class="ans"><b>Answer:</b> sidebands at $14.4075$ MHz and $12.7125$ MHz — the clean lines a bandpass filter isolates to read the card's reply.</div>
+      </details>
+    </div>
+  </div>
+</section>
+
+<div class="divider">
+  <div class="rule"></div>
+  <h3>Three real protocols, <span class="grad">decoded</span></h3>
+  <p>Everything so far — samples, IQ, the FFT, the five modulations — now meets the air. Each of the next three chapters takes a real signal apart with the same NumPy, mirroring an actual decoder in this folder.</p>
+</div>
+
+<!-- ============================================================= -->
+<!-- 6. NFC -->
+<!-- ============================================================= -->
+<section class="chapter proto" id="nfc">
+  <span class="era">Chapter 6 · ISO 14443-A at 13.56 MHz</span>
+  <h2>NFC — a card whispering in a subcarrier</h2>
+  <p class="who">Manchester · load modulation · the 847.5 kHz subcarrier — straight from <span class="fileref">nfc_modulation_demo.py</span></p>
+
+  <div class="beats">
+    <div class="beat known"><div class="tag">The setup</div>
+      <p>An NFC reader (PCD) holds an unmodulated <b>13.56 MHz carrier</b> in the air. A passive card (PICC) has no battery — it harvests power from that field by near-field magnetic coupling, like the secondary of a loose air-core transformer. To answer, it cannot transmit its own carrier; it must modulate the reader's.</p></div>
+    <div class="beat idea"><div class="tag">The card's voice</div>
+      <p>The card answers by switching a load resistor across its coil at $f_c/16 = $ <b>847.5 kHz</b> — a <b>subcarrier</b>. To the reader this looks like a tiny AM ripple (a few percent) on its own carrier: a pair of sidebands at $13.56\,\text{MHz}\pm847.5\,\text{kHz}$. That ripple is the entire payload.</p></div>
+    <div class="beat test"><div class="tag">Encoding the bits</div>
+      <p>The card OOK-keys that subcarrier with a <b>Manchester</b> code: a 1 is subcarrier-on then off, a 0 is off then on — every bit has a guaranteed mid-edge and is DC-balanced. One bit (<b>etu</b>) is $f_c/128 = $ 9.44 µs = 8 subcarrier cycles. Each byte ships 8 data bits LSB-first plus one odd-parity bit.</p></div>
+    <div class="beat found"><div class="tag">The decode</div>
+      <p><span class="fileref">decode_nfc.py</span> reverses it exactly: bandpass the envelope around 847.5 kHz, AM-detect with a Hilbert transform, slice each half-etu, and recover bits → bytes → the card's UID. The other direction (reader→card) is 100% OOK using Modified Miller pauses, handled in <span class="fileref">nfc_modulation_demo.py</span>.</p></div>
+  </div>
+
+  <p class="codecap">Manchester encoding and the gated subcarrier — the core of <span class="fileref">nfc_modulation_demo.py</span>:</p>
+<pre class="code">CARRIER_HZ    = 13.56e6
+SUBCARRIER_HZ = CARRIER_HZ / 16      # 847.5 kHz
+ETU_S         = 128 / CARRIER_HZ     # 9.44 µs per bit (8 subcarrier cycles)
+
+def byte_to_bits_with_parity(byte):
+    bits = [(byte >> i) & 1 for i in range(8)]   # 8 data bits, LSB-first
+    bits.append(1 - (sum(bits) & 1))             # + 1 odd-parity bit
+    return bits
+
+def manchester_halfbits(bits):
+    out = []
+    for b in bits:
+        out.extend([1, 0] if b else [0, 1])      # '1' = on-off,  '0' = off-on
+    return out
+
+# the card gates a pure 847.5 kHz sine with that half-bit pattern, then
+# load-modulates the 13.56 MHz carrier:  rf = carrier * (1 + m * mod_subcarrier)</pre>
+
+  <div class="mathnote">
+    <h4>"Odd parity" and "DC-balanced", unpacked</h4>
+    <p><b>Odd parity:</b> the ninth bit is chosen so that the nine bits together contain an odd number of 1s. If any single bit flips in transit, the count turns even and the receiver knows the byte is corrupt — a one-bit error detector that costs one bit. (That is the <code class="inlinecode">1 - (sum(bits) &amp; 1)</code> in the code above.) <b>DC-balanced:</b> in Manchester coding every bit spends exactly half its time "on" and half "off", so the waveform's long-run average never drifts. That matters because the reader recovers the data from an AM <i>envelope</i> with a decision threshold — a drifting average would drag the threshold around — and the guaranteed mid-bit edge in every single bit gives the decoder a clock to lock onto, even through a long run of identical bits.</p>
+  </div>
+
+  <div class="lab proto">
+    <h3><span class="dot"></span>Build an NFC card response, byte by byte</h3>
+    <p class="hint">Type a hex byte (the start of a Mifare UID is <code class="inlinecode">04</code>). The panels show the chain top-to-bottom: the data bits (LSB-first + parity), the Manchester half-bits, the gated 847.5 kHz subcarrier, and the AM envelope the reader actually sees. The load-modulation depth is exaggerated so the wobble is visible — in reality it is ~1–3%.</p>
+    <div class="controls">
+      <div class="ctl">
+        <label>Card byte (hex)</label>
+        <input id="nfc_byte" type="text" value="04" maxlength="2" spellcheck="false">
+      </div>
+      <div class="ctl">
+        <label>Load-mod depth m <b><span id="nfc_mlbl">10</span>%</b></label>
+        <input id="nfc_m" type="range" min="2" max="30" step="1" value="10">
+      </div>
+    </div>
+    <div class="readout">
+      <div class="stat"><div class="k">Bits sent (8 + parity)</div><div class="v" id="nfc_bits" style="font-size:14px;font-family:ui-monospace,monospace">—</div></div>
+      <div class="stat"><div class="k">Odd parity</div><div class="v" id="nfc_par">—</div></div>
+      <div class="stat"><div class="k">1 etu</div><div class="v">9.44 <small>µs</small></div></div>
+    </div>
+    <figure><canvas id="nfc_canvas" width="900" height="460"></canvas>
+      <figcaption>Top→bottom: data bits → Manchester half-bits → gated 847.5 kHz subcarrier → AM envelope at the reader. This is the synthetic chain <span class="fileref">nfc_modulation_demo.py</span> draws before overlaying a real capture.</figcaption></figure>
+  </div>
+
+  <div class="mathnote">
+    <h4>Why a subcarrier at all?</h4>
+    <p>If the card modulated the 13.56 MHz carrier directly, its faint signal would sit right on top of the reader's enormous one and be impossible to separate. By shifting its answer up to a <b>847.5 kHz subcarrier</b>, the card's data lands in clean sidebands well away from the carrier, where a simple bandpass filter isolates it. It is the same reason chapters of spectrum are allocated to different services — move your signal somewhere quiet. The 16× ratio ($f_c/16$) keeps the subcarrier locked to the carrier the card is powered by, so no independent oscillator is needed.</p>
+  </div>
+
+  <h3 class="subhead">Practice problems</h3>
+  <div class="problems">
+    <div class="problem">
+      <p class="pq"><span class="pn">1.</span> An NFC reader holds a carrier $f_c = 13.56$ MHz. The card answers on a subcarrier at $f_c/16$. What is the subcarrier frequency?</p>
+      <details class="soln"><summary>Show solution</summary>
+        <ol>
+          <li><b>Divide the carrier.</b> $f_c/16 = 13{,}560{,}000 / 16$.</li>
+          <li><b>Evaluate.</b> $= 847{,}500$ Hz.</li>
+        </ol>
+        <div class="ans"><b>Answer:</b> $847.5$ kHz — the load-modulation line every NFC decoder hunts for in the spectrum.</div>
+      </details>
+    </div>
+    <div class="problem">
+      <p class="pq"><span class="pn">2.</span> One bit (etu) lasts $128/f_c$ seconds, so the on-air bit rate is $f_c/128$. With $f_c = 13.56$ MHz, find the etu duration in microseconds and the bit rate in kbps.</p>
+      <details class="soln"><summary>Show solution</summary>
+        <ol>
+          <li><b>Bit duration.</b> $128/f_c = 128/13{,}560{,}000 \approx 9.44\times10^{-6}$ s $= 9.44$ µs.</li>
+          <li><b>Bit rate.</b> $f_c/128 = 13{,}560{,}000/128 \approx 105{,}937$ bit/s.</li>
+        </ol>
+        <div class="ans"><b>Answer:</b> $9.44$ µs per bit, $\approx 106$ kbps — the standard ISO 14443-A baseline data rate.</div>
+      </details>
+    </div>
+    <div class="problem">
+      <p class="pq"><span class="pn">3.</span> How many full subcarrier cycles fit inside one etu? Combine $f_\text{sub} = f_c/16$ and the bit duration $T_\text{etu} = 128/f_c$ as $f_\text{sub} \times T_\text{etu}$.</p>
+      <details class="soln"><summary>Show solution</summary>
+        <ol>
+          <li><b>Multiply.</b> $f_\text{sub} \times T_\text{etu} = \dfrac{f_c}{16}\cdot\dfrac{128}{f_c}$.</li>
+          <li><b>The carrier cancels.</b> $= 128/16 = 8$.</li>
+        </ol>
+        <div class="ans"><b>Answer:</b> exactly $8$ subcarrier cycles per bit — which is why each Manchester half-bit holds 4 clean cycles to gate on or off.</div>
+      </details>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================= -->
+<!-- 7. BLUETOOTH -->
+<!-- ============================================================= -->
+<section class="chapter proto" id="bluetooth">
+  <span class="era">Chapter 7 · Bluetooth LE at 2.4 GHz</span>
+  <h2>Bluetooth — GFSK, the polite cousin of FSK</h2>
+  <p class="who">1 Msym/s · 40 channels · Gaussian-smoothed frequency shift — the family <span class="fileref">decode_remote.py</span> targets</p>
+
+  <div class="beats">
+    <div class="beat known"><div class="tag">What was known</div>
+      <p>Bluetooth Low Energy lives in the 2.4 GHz ISM band and sends 1 million symbols per second using <b>GFSK</b> — frequency-shift keying, like Chapter 5's FSK, but with the bit edges <b>Gaussian-smoothed</b> first. The smoothing rounds the abrupt frequency jumps so the signal occupies less bandwidth and doesn't splatter into neighbouring channels.</p></div>
+    <div class="beat idea"><div class="tag">The channels</div>
+      <p>BLE divides the band into <b>40 channels</b> 2 MHz apart, $f = 2402 + 2k$ MHz. Three of them — channels 37, 38, 39 at 2402, 2426, 2480 MHz — are the <b>advertising</b> channels, deliberately spread across the band so a crowded 2.4 GHz environment can't block all three. Devices hop the other 37 for data once connected.</p></div>
+    <div class="beat test"><div class="tag">The trade-off</div>
+      <p>The Gaussian filter is described by <b>BT</b>, its bandwidth-time product (BLE uses 0.5). Lower BT = more smoothing = narrower spectrum but more <b>inter-symbol interference</b> (each bit smears into its neighbours). That ISI is exactly why <span class="fileref">decode_fsk.py</span> notes a GFSK decoder needs a one-symbol differential detector, while plain FSK can be sliced per sample.</p></div>
+    <div class="beat found"><div class="tag">The decode</div>
+      <p><span class="fileref">decode_remote.py</span> scans the 2.4 GHz ISM band, finds the narrowband carrier of a toy remote or BLE device, estimates its GFSK symbol rate, and demodulates with the same instantaneous-frequency operator. The same machinery reads BLE advertisements (the <span class="fileref">ble_ch37.iq</span> capture) — find the access address, dewhiten, and the packet falls out.</p></div>
+  </div>
+
+  <p class="codecap">GFSK is FSK with a Gaussian pre-filter on the bits — and the demod is the same inst-freq from Chapter 3:</p>
+<pre class="code">fs       = 2e6
+sym_rate = 1_000_000            # BLE: 1 Msym/s
+sps      = int(fs / sym_rate)  # samples per symbol
+dev      = 250e3               # ~250 kHz frequency deviation (BLE index ~0.5)
+
+# Gaussian pulse-shape the NRZ bits before FM modulating (this is the 'G' in GFSK)
+from scipy.signal import gaussian
+shape = gaussian(sps, std=sps*0.5/2.3548)      # BT = 0.5
+shaped = np.convolve(np.repeat(2*bits-1, sps), shape/shape.sum(), 'same')
+phase  = np.cumsum(2*np.pi*dev*shaped/fs)
+tx     = np.exp(1j*phase)
+
+# receive: instantaneous frequency, exactly as decode_remote.py / decode_fsk.py do
+freq = np.angle(rx[1:] * np.conj(rx[:-1]))     # > 0 -> bit 1, < 0 -> bit 0
+
+# BLE channel center frequencies:
+chan = lambda k: 2402e6 + 2e6*k                # k = 0..39;  37/38/39 = advertising</pre>
+
+  <div class="lab proto">
+    <h3><span class="dot"></span>FSK vs GFSK — what the Gaussian filter buys</h3>
+    <p class="hint">The same bit pattern, FM-modulated two ways: hard <b>FSK</b> (grey, sharp frequency steps) and <b>GFSK</b> (amber, Gaussian-smoothed). Lower the BT product and watch the GFSK curve round off harder — narrower spectrum, but the levels start blurring together (the ISI that complicates the decoder). The plot is instantaneous frequency, the very thing the receiver slices.</p>
+    <div class="controls">
+      <div class="ctl">
+        <label>BT (Gaussian bandwidth·time) <b><span id="ble_btlbl">0.50</span></b></label>
+        <input id="ble_bt" type="range" min="0.2" max="1.5" step="0.05" value="0.5">
+      </div>
+      <div class="ctl">
+        <label>Samples / symbol <b><span id="ble_spslbl">20</span></b></label>
+        <input id="ble_sps" type="range" min="8" max="40" step="2" value="20">
+      </div>
+    </div>
+    <div id="ble_plot" class="plot"></div>
+    <figure><canvas id="ble_chan" width="900" height="120"></canvas>
+      <figcaption>The 40 BLE channels across 2402–2480 MHz. Amber = the three advertising channels (37, 38, 39); cyan = data channels. Spacing is 2 MHz.</figcaption></figure>
+  </div>
+
+  <div class="mathnote">
+    <h4>The "G" is Chapter 0's bell curve — used as a filter, not as noise</h4>
+    <p>Here the Gaussian isn't randomness: it is a set of <b>weights</b>. The <code class="inlinecode">np.convolve</code> in the code slides a bell-shaped window along the square bit waveform, replacing each point with a bell-weighted average of its neighbours — which turns every cliff-edge frequency jump into a smooth S-curve. Sharp edges are what cost bandwidth (recall Chapter 1's square wave, which needs harmonics far above its base frequency), so smoothing the edges directly narrows the transmitted spectrum. <b>BT</b> is the filter's bandwidth multiplied by the bit duration: BT = 0.5 means the filter passes only about half the bit rate, so each bit's transition bleeds into its neighbours — the inter-symbol interference the lab shows. And the odd constant 2.3548 in the code is $2\sqrt{2\ln 2}$: it converts a width quoted as "full width at half maximum" into the σ that <code class="inlinecode">scipy.signal.gaussian</code> expects.</p>
+    <p><b>And "dewhiten"?</b> BLE XORs every packet with a known pseudo-random bit pattern before transmission ("whitening") so the air never carries long runs of identical bits — runs that would put all the energy in one spot and starve the receiver's timing recovery of edges. The receiver XORs with the same pattern to undo it: XOR twice and the data is back.</p>
+  </div>
+
+  <h3 class="subhead">Practice problems</h3>
+  <div class="problems">
+    <div class="problem">
+      <p class="pq"><span class="pn">1.</span> BLE channel centers follow $f = 2402 + 2k$ MHz for $k = 0\ldots39$. What is the center frequency of channel index $k = 39$ (advertising channel 39)?</p>
+      <details class="soln"><summary>Show solution</summary>
+        <ol>
+          <li><b>Substitute k.</b> $f = 2402 + 2\times39$.</li>
+          <li><b>Evaluate.</b> $= 2402 + 78 = 2480$ MHz.</li>
+        </ol>
+        <div class="ans"><b>Answer:</b> $2480$ MHz — the top advertising channel, deliberately at the band edge so it rarely collides with the others.</div>
+      </details>
+    </div>
+    <div class="problem">
+      <p class="pq"><span class="pn">2.</span> A receiver captures BLE's $1$ Msym/s GFSK at $f_s = 4$ MS/s. The samples per symbol is $\text{sps} = f_s / \text{sym\_rate}$. How many samples cover one symbol?</p>
+      <details class="soln"><summary>Show solution</summary>
+        <ol>
+          <li><b>Form the ratio.</b> $\text{sps} = f_s/\text{sym\_rate} = 4{,}000{,}000 / 1{,}000{,}000$.</li>
+          <li><b>Divide.</b> $= 4$.</li>
+        </ol>
+        <div class="ans"><b>Answer:</b> $4$ samples per symbol — enough to run a one-symbol differential detector and slice each GFSK bit.</div>
+      </details>
+    </div>
+    <div class="problem">
+      <p class="pq"><span class="pn">3.</span> The GFSK shaping code converts a Gaussian width quoted as full-width-at-half-maximum into the σ that <code class="inlinecode">scipy.signal.gaussian</code> wants, using $\sigma = \text{FWHM}/(2\sqrt{2\ln 2})$. Evaluate the constant $2\sqrt{2\ln 2}$.</p>
+      <details class="soln"><summary>Show solution</summary>
+        <ol>
+          <li><b>Inner value.</b> $2\ln 2 = 1.386$, so $\sqrt{1.386} = 1.177$.</li>
+          <li><b>Double it.</b> $2 \times 1.177 = 2.3548$.</li>
+        </ol>
+        <div class="ans"><b>Answer:</b> $\approx 2.355$ — the exact constant in the code that links a filter's FWHM to its standard deviation.</div>
+      </details>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================= -->
+<!-- 8. WIFI -->
+<!-- ============================================================= -->
+<section class="chapter proto" id="wifi">
+  <span class="era">Chapter 8 · Wi-Fi — OFDM &amp; QAM</span>
+  <h2>Wi-Fi — hundreds of tiny carriers, each a constellation</h2>
+  <p class="who">The IFFT as a transmitter · QAM symbols · why your router sends 64 sinusoids at once</p>
+
+  <div class="beats">
+    <div class="beat known"><div class="tag">The problem</div>
+      <p>NFC and BLE send one symbol stream on one carrier. Wi-Fi needs to push tens of megabits through a channel full of echoes (multipath), where a single fast stream smears unrecoverably. The fix — <b>OFDM</b>, orthogonal frequency-division multiplexing — splits the data across <b>many slow subcarriers</b> running in parallel, each so slow that echoes barely bother it.</p></div>
+    <div class="beat idea"><div class="tag">The trick</div>
+      <p>A 20 MHz Wi-Fi channel is divided into <b>64 subcarriers</b> 312.5 kHz apart. Each carries a few bits as a <b>QAM</b> symbol — a point in the complex plane whose amplitude and phase encode the bits. The genius: a transmitter builds all 64 at once with a single <b>inverse FFT</b>. The IFFT <i>is</i> the modulator; the receiver's FFT is the demodulator. Chapter 4, run backwards.</p></div>
+    <div class="beat test"><div class="tag">The constellation</div>
+      <p>More points per subcarrier = more bits per symbol, but points sit closer together and noise confuses them sooner. BPSK carries 1 bit/subcarrier, QPSK 2, 16-QAM 4, 64-QAM 6. A clean link with high SNR uses dense 64-QAM; a weak one falls back to rugged BPSK. The received cloud of dots — the <b>constellation diagram</b> — is the first thing you plot to judge link quality.</p></div>
+    <div class="beat found"><div class="tag">The thread</div>
+      <p>It is all the same toolkit: complex IQ (Chapter 3) for the constellation points, the FFT (Chapter 4) for the (de)modulator, and phase/amplitude keying (Chapter 5) raised to dozens of carriers at once. Decoding real Wi-Fi adds synchronisation and equalisation, but the heart is an FFT of the IQ you now know how to capture.</p></div>
+  </div>
+
+  <p class="codecap">An OFDM symbol is an IFFT of QAM points — the transmitter in a few lines:</p>
+<pre class="code">N = 64                                   # subcarriers (20 MHz Wi-Fi)
+fs = 20e6
+df = fs / N                              # 312.5 kHz subcarrier spacing
+
+# map bits to 16-QAM points (amplitude+phase = a complex number per subcarrier)
+levels = np.array([-3,-1,1,3])
+symbols = (np.random.choice(levels, N) + 1j*np.random.choice(levels, N)) / np.sqrt(10)
+
+# the IFFT turns 64 frequency-domain QAM points into one time-domain OFDM symbol
+ofdm_time = np.fft.ifft(symbols)
+ofdm_time = np.concatenate([ofdm_time[-16:], ofdm_time])   # add cyclic prefix
+
+# receiver: strip prefix, FFT back to the constellation, slice each point
+rx_syms = np.fft.fft(ofdm_time[16:])     # -> recovers the QAM points</pre>
+
+  <div class="lab proto">
+    <h3><span class="dot"></span>Constellations and one OFDM symbol</h3>
+    <p class="hint">Left: the <b>constellation</b> for the chosen QAM order — the legal points a subcarrier can take. Add channel noise and watch each point blur into a cloud; push it far enough and neighbouring points overlap (bit errors). Right: one <b>OFDM symbol</b> in time — the sum of all subcarriers, built by the IFFT, the messy-looking waveform that actually goes on the air.</p>
+    <div class="controls">
+      <div class="ctl">
+        <label>Modulation order</label>
+        <select id="wifi_ord">
+          <option value="2">BPSK — 1 bit/subcarrier</option>
+          <option value="4">QPSK — 2 bits/subcarrier</option>
+          <option value="16" selected>16-QAM — 4 bits/subcarrier</option>
+          <option value="64">64-QAM — 6 bits/subcarrier</option>
+        </select>
+      </div>
+      <div class="ctl">
+        <label>Channel noise (EVM) <b><span id="wifi_nlbl">0.08</span></b></label>
+        <input id="wifi_n" type="range" min="0" max="0.4" step="0.01" value="0.08">
+      </div>
+    </div>
+    <div class="readout">
+      <div class="stat"><div class="k">Bits / subcarrier</div><div class="v" id="wifi_bps">4</div></div>
+      <div class="stat"><div class="k">Subcarriers</div><div class="v">64</div></div>
+      <div class="stat"><div class="k">Subcarrier spacing</div><div class="v">312.5 <small>kHz</small></div></div>
+    </div>
+    <div class="figrow" style="display:grid;grid-template-columns:1fr;gap:16px">
+      <div id="wifi_const" class="plot"></div>
+      <div id="wifi_time" class="plot" style="height:220px"></div>
+    </div>
+    <div class="verdict" id="wifi_verdict"></div>
+  </div>
+
+  <div class="mathnote">
+    <h4>Two details in the code, unpacked</h4>
+    <p><b>The √10:</b> 16-QAM uses the levels $\pm1, \pm3$ on each axis, so the average symbol power is $E[I^2]+E[Q^2] = 5+5 = 10$. Dividing every point by $\sqrt{10}$ normalizes the constellation to average power 1, so BPSK, QPSK and 64-QAM can be compared at the same transmit power and a given noise level means the same thing for each. (Each order has its own factor: $\sqrt 2$ for QPSK, $\sqrt{42}$ for 64-QAM.) <b>The cyclic prefix:</b> the last 16 samples of each symbol are copied onto its front. Multipath echoes of the <i>previous</i> symbol then land in that sacrificial pad instead of the data — and because the pad is a copy of the tail, every subcarrier still looks perfectly periodic to the receiver's FFT even when the whole symbol arrives slightly delayed.</p>
+  </div>
+
+  <div class="mathnote">
+    <h4>Why "orthogonal"</h4>
+    <p>The subcarriers are spaced at exactly $f_s/N$ so that over one symbol each completes a whole number of cycles and integrates to zero against every other — they are <b>orthogonal</b>, so despite overlapping spectra they don't interfere, and the FFT separates them perfectly. That is the same correlation-cancels-unless-aligned property that makes the Fourier transform work in Chapter 4. OFDM is, quite literally, communicating in FFT bins.</p>
+  </div>
+
+  <h3 class="subhead">Practice problems</h3>
+  <div class="problems">
+    <div class="problem">
+      <p class="pq"><span class="pn">1.</span> A 20 MHz Wi-Fi channel uses an $N = 64$-point (I)FFT. The subcarrier spacing is $\Delta f = f_s/N$ with $f_s = 20$ MHz. How far apart are adjacent subcarriers?</p>
+      <details class="soln"><summary>Show solution</summary>
+        <ol>
+          <li><b>Apply the bin formula.</b> $\Delta f = f_s/N = 20{,}000{,}000 / 64$.</li>
+          <li><b>Divide.</b> $= 312{,}500$ Hz.</li>
+        </ol>
+        <div class="ans"><b>Answer:</b> $312.5$ kHz — the spacing that makes the 64 subcarriers mutually orthogonal over one symbol.</div>
+      </details>
+    </div>
+    <div class="problem">
+      <p class="pq"><span class="pn">2.</span> A link has bandwidth $B = 20$ MHz and an SNR of $100$ (i.e. 20 dB). Shannon's capacity is $C = B\log_2(1+\text{SNR})$. What is the theoretical maximum bit rate?</p>
+      <details class="soln"><summary>Show solution</summary>
+        <ol>
+          <li><b>Inside the log.</b> $1 + \text{SNR} = 101$.</li>
+          <li><b>Log base 2.</b> $\log_2(101) \approx 6.66$.</li>
+          <li><b>Multiply by bandwidth.</b> $C = 20\times10^6 \times 6.66$.</li>
+        </ol>
+        <div class="ans"><b>Answer:</b> $\approx 133$ Mbps — the hard ceiling no modulation scheme on this channel can beat.</div>
+      </details>
+    </div>
+    <div class="problem">
+      <p class="pq"><span class="pn">3.</span> 16-QAM places each axis at levels $\pm1, \pm3$. To normalize the constellation to unit average power, every point is divided by $\sqrt{E[I^2]+E[Q^2]}$. Find that normalization factor.</p>
+      <details class="soln"><summary>Show solution</summary>
+        <ol>
+          <li><b>Average per axis.</b> $E[I^2] = \tfrac{1}{4}(1+9+1+9) = 5$, and likewise $E[Q^2]=5$.</li>
+          <li><b>Total power.</b> $E[I^2]+E[Q^2] = 10$.</li>
+          <li><b>Take the root.</b> $\sqrt{10} \approx 3.16$.</li>
+        </ol>
+        <div class="ans"><b>Answer:</b> $\sqrt{10} \approx 3.16$ — the exact divisor in the code, so 16-QAM transmits at the same average power as BPSK or 64-QAM.</div>
+      </details>
+    </div>
+  </div>
+</section>
+
+<!--SECTIONS-->
+
+<!-- ============================================================= -->
+<!-- SELF-TEST QUIZ -->
+<!-- ============================================================= -->
+<section class="chapter" id="quiz">
+  <span class="era">Check yourself · Twenty-four questions</span>
+  <h2>Did the samples tell you what you think?</h2>
+  <p class="who">Twenty-four questions spanning the math primer, sampling, complex IQ, the Fourier transform, modulation, and the three real protocols</p>
+
+  <div class="lab">
+    <h3><span class="dot"></span>Self-test</h3>
+    <p class="hint">Pick an answer for each question. Correct choices turn green, mistakes turn red, and a short explanation appears either way. Your running score sits at the top; nothing is sent anywhere — refresh or hit Reset to try again.</p>
+    <div class="quiz-head">
+      <div class="quiz-score">Score <b><span id="qz_correct">0</span></b> / <span id="qz_total">24</span> &nbsp;·&nbsp; <span id="qz_answered">0</span> answered</div>
+      <div class="quiz-bar"><i id="qz_fill"></i></div>
+      <button class="quiz-reset" id="qz_reset" type="button">Reset</button>
+    </div>
+    <div id="qz_list"></div>
+  </div>
+</section>
+
+</main>
+</div>
+
+<footer>
+  <p><b>About this companion.</b> A hands-on tour of software-defined radio built entirely in Python and NumPy, ending with the decode of three real protocols. Every plot computes real DSP live — the unit-circle origin of the sine wave, Gaussian noise and the bell curve, synthetic tones, aliasing, the phasor and Euler's formula, the FFT, AM/FM/ASK/FSK/PSK modulation, ISO&nbsp;14443-A Manchester/load-modulation, BLE GFSK, and Wi-Fi OFDM/QAM. The code blocks mirror the actual decoders in this folder, written against a HackRF + RTL-SDR (NESDR) workflow under radioconda / GNU Radio 3.10.</p>
+  <p style="margin-top:8px">Reference values used throughout: NFC carrier $f_c = 13.56$ MHz, subcarrier $f_c/16 = 847.5$ kHz, bit rate $f_c/128 = 106$ kbps; BLE 2.4 GHz, 1&nbsp;Msym/s GFSK, 40 channels spaced 2&nbsp;MHz; Wi-Fi 20&nbsp;MHz channel, 64-point (I)FFT, 312.5&nbsp;kHz subcarrier spacing. Some illustrations are deliberately schematic — accurate in scaling and spirit, simplified in detail. SDR fundamentals follow the framing of Great Scott Gadgets' <a class="inline" href="https://greatscottgadgets.com/sdr/" target="_blank" rel="noopener">SDR tutorial series</a> and <a class="inline" href="https://pysdr.org/" target="_blank" rel="noopener">PySDR</a>.</p>
+</footer>
+
+<!-- =======================================================================
+     SHARED HELPERS
+======================================================================= -->
+<script>
+const C_LIGHT=2.998e8;
+function commas(x){return Math.round(x).toLocaleString();}
+function eng(x,unit){ // engineering notation for Hz-like quantities
+  const a=Math.abs(x);
+  if(a>=1e9) return (x/1e9).toFixed(2).replace(/\.00$/,'')+' G'+unit;
+  if(a>=1e6) return (x/1e6).toFixed(2).replace(/\.00$/,'')+' M'+unit;
+  if(a>=1e3) return (x/1e3).toFixed(2).replace(/\.00$/,'')+' k'+unit;
+  return x.toFixed(0)+' '+unit;
+}
+function baseLayout(extra){
+  return Object.assign({
+    paper_bgcolor:'rgba(0,0,0,0)', plot_bgcolor:'rgba(0,0,0,0)',
+    font:{color:'#cfd6f5', size:12, family:'-apple-system,Segoe UI,Roboto,sans-serif'},
+    margin:{l:56,r:16,t:16,b:46},
+    xaxis:{gridcolor:'rgba(140,160,230,0.12)', zerolinecolor:'rgba(140,160,230,0.25)', linecolor:'rgba(140,160,230,0.3)'},
+    yaxis:{gridcolor:'rgba(140,160,230,0.12)', zerolinecolor:'rgba(140,160,230,0.25)', linecolor:'rgba(140,160,230,0.3)'},
+    showlegend:false, hovermode:'closest'
+  }, extra||{});
+}
+const PCFG={responsive:true, displayModeBar:false};
+const COL={cyan:'#3fd0ff', amber:'#ffb24a', violet:'#b08cff', rose:'#ff6b9d', green:'#5ee6a8', ink:'#e8ecff', muted:'#9aa3c7'};
+// real FFT magnitude (dB) helper used by several labs
+function fftMagDb(re, im){
+  const N=re.length;
+  // naive DFT is fine for the small N (<=1024) used in the labs
+  const mag=new Array(N);
+  for(let k=0;k<N;k++){
+    let sr=0, si=0;
+    const w=-2*Math.PI*k/N;
+    for(let n=0;n<N;n++){ const a=w*n; const c=Math.cos(a), s=Math.sin(a);
+      sr+=re[n]*c - im[n]*s; si+=re[n]*s + im[n]*c; }
+    mag[k]=Math.sqrt(sr*sr+si*si);
+  }
+  return mag;
+}
+</script>
+
+<!-- per-lab interactive scripts get appended here -->
+<script>
+/* ---- Lab 0a: unroll the circle -> A·sin(2πft+φ) ---- */
+(function(){
+  const aEl=document.getElementById('tr_a'); if(!aEl) return;
+  const fEl=document.getElementById('tr_f'), pEl=document.getElementById('tr_p');
+  const al=document.getElementById('tr_albl'), fl=document.getElementById('tr_flbl'), pl=document.getElementById('tr_plbl');
+  const thO=document.getElementById('tr_th'), sinO=document.getElementById('tr_sin'), xO=document.getElementById('tr_x');
+  const playBtn=document.getElementById('tr_play'), cv=document.getElementById('tr_canvas'), x=cv.getContext('2d');
+  let running=true, t=0, last=null;
+  function render(){
+    const A=+aEl.value, f=+fEl.value, phi=+pEl.value*Math.PI/180;
+    al.textContent=A.toFixed(2); fl.textContent=(+fEl.value).toFixed(2).replace(/\.?0+$/,''); pl.textContent=+pEl.value;
+    const W=cv.width, H=cv.height;
+    x.fillStyle='#05060d'; x.fillRect(0,0,W,H);
+    const cx=145, cy=H*0.5, R0=105, R=R0*A;
+    // axes
+    x.strokeStyle='rgba(140,160,230,0.22)'; x.lineWidth=1;
+    x.beginPath(); x.moveTo(cx-R0-34,cy); x.lineTo(cx+R0+34,cy); x.moveTo(cx,cy-R0-30); x.lineTo(cx,cy+R0+30); x.stroke();
+    // reference unit circle (dashed) and the actual radius-A circle
+    x.setLineDash([4,5]); x.strokeStyle='rgba(140,160,230,0.35)'; x.beginPath(); x.arc(cx,cy,R0,0,7); x.stroke(); x.setLineDash([]);
+    x.strokeStyle='rgba(232,236,255,0.55)'; x.lineWidth=1.6; x.beginPath(); x.arc(cx,cy,R,0,7); x.stroke();
+    // starting-angle marker (phi)
+    x.fillStyle=COL.cyan; x.beginPath(); x.arc(cx+R*Math.cos(phi), cy-R*Math.sin(phi), 3.5, 0, 7); x.fill();
+    const th=2*Math.PI*f*t+phi, s=Math.sin(th), c=Math.cos(th);
+    const Px=cx+R*c, Py=cy-R*s;
+    // sine leg (vertical, green) then radius and point
+    x.strokeStyle=COL.green; x.lineWidth=3; x.beginPath(); x.moveTo(Px,cy); x.lineTo(Px,Py); x.stroke();
+    x.strokeStyle='rgba(232,236,255,0.9)'; x.lineWidth=2; x.beginPath(); x.moveTo(cx,cy); x.lineTo(Px,Py); x.stroke();
+    x.fillStyle='#fff'; x.beginPath(); x.arc(Px,Py,5,0,7); x.fill();
+    x.font='12px -apple-system'; x.textAlign='center';
+    x.fillStyle=COL.muted; x.fillText('radius A = '+A.toFixed(2), cx, cy+R0+26);
+    x.fillStyle=COL.cyan; x.fillText('cyan dot: start angle φ', cx, cy-R0-14);
+    // ---- wave panel: height vs time, newest at the left edge ----
+    const x0=330, x1=W-30, midY=cy, sc=R0;
+    x.strokeStyle='rgba(140,160,230,0.22)'; x.lineWidth=1;
+    x.beginPath(); x.moveTo(x0,midY); x.lineTo(x1,midY); x.stroke();
+    x.setLineDash([3,6]); x.strokeStyle='rgba(140,160,230,0.18)';
+    x.beginPath(); x.moveTo(x0,midY-sc); x.lineTo(x1,midY-sc); x.moveTo(x0,midY+sc); x.lineTo(x1,midY+sc); x.stroke(); x.setLineDash([]);
+    x.fillStyle='#6f78a0'; x.textAlign='left'; x.fillText('+1', x1+6, midY-sc+4); x.fillText('−1', x1+6, midY+sc+4);
+    // the recent history of the height: u seconds ago -> drawn u of the way across
+    x.strokeStyle=COL.cyan; x.lineWidth=2; x.beginPath();
+    const M=260;
+    for(let i=0;i<=M;i++){ const u=i/M;
+      const Y=midY - A*Math.sin(2*Math.PI*f*(t-u)+phi)*sc, X=x0+(x1-x0)*u;
+      if(i===0)x.moveTo(X,Y); else x.lineTo(X,Y); }
+    x.stroke();
+    // connector: the current height, carried straight across to the trace head
+    x.setLineDash([4,5]); x.strokeStyle='rgba(94,230,168,0.55)'; x.lineWidth=1.4;
+    x.beginPath(); x.moveTo(Px,Py); x.lineTo(x0,Py); x.stroke(); x.setLineDash([]);
+    x.fillStyle=COL.green; x.beginPath(); x.arc(x0,Py,5,0,7); x.fill();
+    x.fillStyle=COL.muted; x.textAlign='center'; x.fillText('x(t) = A·sin(2πft + φ)   — time →', (x0+x1)/2, H-12);
+    // readouts
+    const deg=((th*180/Math.PI)%360+360)%360;
+    thO.textContent=deg.toFixed(0)+'°'; sinO.textContent=s.toFixed(2); xO.textContent=(A*s).toFixed(2);
+  }
+  function loop(ts){
+    if(!running) return;
+    if(last==null) last=ts;
+    t+=(ts-last)/1000*0.22; last=ts;
+    render(); requestAnimationFrame(loop);
+  }
+  playBtn.addEventListener('click',()=>{ running=!running; playBtn.textContent=running?'⏸ pause':'▶ play'; if(running){last=null; requestAnimationFrame(loop);} });
+  [aEl,fEl,pEl].forEach(e=>e.addEventListener('input',()=>{ if(!running) render(); }));
+  requestAnimationFrame(loop); render();
+})();
+</script>
+<script>
+/* ---- Lab 0b: Gaussian noise dissected ---- */
+(function(){
+  const sEl=document.getElementById('gs_s'); if(!sEl) return;
+  const sl=document.getElementById('gs_slbl'), p1O=document.getElementById('gs_p1'), p2O=document.getElementById('gs_p2'),
+        snrO=document.getElementById('gs_snr'), verdict=document.getElementById('gs_verdict');
+  // deterministic pseudo-noise, same generator as Lab 1
+  let seed=98765; function rnd(){ seed=(seed*1103515245+12345)&0x7fffffff; return seed/0x7fffffff; }
+  function randn(){ let u=0,v=0; while(!u)u=rnd(); while(!v)v=rnd(); return Math.sqrt(-2*Math.log(u))*Math.cos(2*Math.PI*v); }
+  function draw(){
+    const sig=+sEl.value; sl.textContent=sig.toFixed(2); seed=98765;
+    // top: clean tone vs tone + noise
+    const fs=1e6, f=10e3, N=600, t=[], xc=[], xn=[];
+    for(let i=0;i<N;i++){ const tt=i/fs; t.push(tt*1e6);
+      const v=Math.sin(2*Math.PI*f*tt); xc.push(v); xn.push(v+sig*randn()); }
+    // bottom: histogram of the noise alone
+    const M=6000, noise=new Array(M); let in1=0,in2=0;
+    for(let i=0;i<M;i++){ const v=sig*randn(); noise[i]=v;
+      if(Math.abs(v)<sig)in1++; if(Math.abs(v)<2*sig)in2++; }
+    p1O.textContent=(100*in1/M).toFixed(1)+'%';
+    p2O.textContent=(100*in2/M).toFixed(1)+'%';
+    const snr=10*Math.log10(0.5/(sig*sig));
+    snrO.innerHTML=snr.toFixed(1)+' <small>dB</small>';
+    const lim=3.5*sig, B=49, bw=2*lim/B, ctr=[], den=[], cnt=new Array(B).fill(0);
+    noise.forEach(v=>{ const k=Math.floor((v+lim)/bw); if(k>=0&&k<B)cnt[k]++; });
+    for(let k=0;k<B;k++){ ctr.push(-lim+(k+0.5)*bw); den.push(cnt[k]/(M*bw)); }
+    // the ideal bell curve p(v) = exp(-v²/2σ²)/(σ√2π)
+    const px=[], py=[];
+    for(let i=0;i<=200;i++){ const v=-lim+2*lim*i/200; px.push(v);
+      py.push(Math.exp(-v*v/(2*sig*sig))/(sig*Math.sqrt(2*Math.PI))); }
+    const pk=1/(sig*Math.sqrt(2*Math.PI));
+    Plotly.react('gs_sig',[
+      {x:t,y:xc,mode:'lines',line:{color:'rgba(150,160,200,0.5)',width:1.3,dash:'dash'},hoverinfo:'skip'},
+      {x:t,y:xn,mode:'lines',line:{color:COL.cyan,width:1.5},hovertemplate:'%{y:.2f}<extra></extra>'}
+    ], baseLayout({xaxis:{title:'time (µs)'},yaxis:{title:'tone + noise'}}),PCFG);
+    Plotly.react('gs_hist',[
+      {x:ctr,y:den,type:'bar',marker:{color:'rgba(63,208,255,0.4)',line:{color:'rgba(63,208,255,0.8)',width:1}},hovertemplate:'%{x:.2f}: %{y:.2f}<extra></extra>'},
+      {x:px,y:py,mode:'lines',line:{color:COL.amber,width:2.2},hoverinfo:'skip'},
+      {x:[-sig,-sig,null,sig,sig],y:[0,pk*1.05,null,0,pk*1.05],mode:'lines',line:{color:COL.green,width:1.4,dash:'dash'},hoverinfo:'skip'},
+      {x:[-2*sig,-2*sig,null,2*sig,2*sig],y:[0,pk*1.05,null,0,pk*1.05],mode:'lines',line:{color:COL.violet,width:1.2,dash:'dot'},hoverinfo:'skip'}
+    ], baseLayout({xaxis:{title:'noise value   (green dashes ±1σ · violet ±2σ)'},yaxis:{title:'probability density'},bargap:0.05}),PCFG);
+    if(snr>=14){ verdict.className='verdict good';
+      verdict.innerHTML='🟢 SNR '+snr.toFixed(1)+' dB — the tone towers over the noise; you could slice bits straight off this waveform.'; }
+    else if(snr>=6){ verdict.className='verdict';
+      verdict.innerHTML='🟡 SNR '+snr.toFixed(1)+' dB — fuzzy but workable. This is exactly why decoders oversample and average across each symbol (Chapter 2’s 40 samples/symbol).'; }
+    else { verdict.className='verdict bad';
+      verdict.innerHTML='🔴 SNR '+snr.toFixed(1)+' dB — the tone is drowning in the time domain. Yet the FFT (Chapter 4) would still find it: correlating over many samples digs signals out from under noise.'; }
+  }
+  sEl.addEventListener('input',draw); draw();
+})();
+</script>
+<script>
+/* ---- Lab 1: synthetic signal generator ---- */
+(function(){
+  const kind=document.getElementById('syn_kind'); if(!kind) return;
+  const fEl=document.getElementById('syn_f'), f2El=document.getElementById('syn_f2'),
+        aEl=document.getElementById('syn_a'), nEl=document.getElementById('syn_n');
+  const fl=document.getElementById('syn_flbl'), f2l=document.getElementById('syn_f2lbl'),
+        al=document.getElementById('syn_albl'), nl=document.getElementById('syn_nlbl'),
+        spc=document.getElementById('syn_spc'), snr=document.getElementById('syn_snr'),
+        verdict=document.getElementById('syn_verdict');
+  const fs=1e6, N=600;
+  // deterministic pseudo-noise so the plot is stable while dragging other sliders
+  let seed=12345; function rnd(){ seed=(seed*1103515245+12345)&0x7fffffff; return seed/0x7fffffff; }
+  function randn(){ let u=0,v=0; while(!u)u=rnd(); while(!v)v=rnd(); return Math.sqrt(-2*Math.log(u))*Math.cos(2*Math.PI*v); }
+  function draw(){
+    const f=+fEl.value*1e3, f2=+f2El.value*1e3, A=+aEl.value, sig=+nEl.value, k=kind.value;
+    fl.textContent=+fEl.value; f2l.textContent=+f2El.value; al.textContent=A.toFixed(2); nl.textContent=sig.toFixed(2);
+    f2El.parentElement.style.opacity = k==='two' ? 1 : 0.35;
+    const t=[], x=[]; seed=12345;
+    for(let i=0;i<N;i++){
+      const tt=i/fs; let v;
+      if(k==='sine')   v=A*Math.sin(2*Math.PI*f*tt);
+      else if(k==='two') v=A*Math.sin(2*Math.PI*f*tt)+A*Math.sin(2*Math.PI*f2*tt);
+      else { // square via first 9 odd harmonics
+        v=0; for(let h=1;h<=17;h+=2) v+=Math.sin(2*Math.PI*f*h*tt)/h; v*=A*4/Math.PI; }
+      v+=sig*randn();
+      t.push(tt*1e6); x.push(v);
+    }
+    const spcv=fs/f; spc.textContent=spcv.toFixed(1);
+    spc.style.color = spcv<2.2 ? COL.rose : (spcv<4? COL.amber : COL.ink);
+    if(sig<=0){ snr.innerHTML='∞ <small>dB</small>'; }
+    else { const ps=(k==='two'?2:1)*A*A/2; const db=10*Math.log10(ps/(sig*sig));
+      snr.innerHTML=db.toFixed(1)+' <small>dB</small>'; }
+    if(spcv<2){ verdict.className='verdict bad';
+      verdict.innerHTML='🔴 Fewer than 2 samples per cycle — this tone is <b>above the Nyquist limit</b>. The dots no longer trace the true sine; you are seeing an alias (Chapter 2).'; }
+    else if(spcv<4){ verdict.className='verdict';
+      verdict.innerHTML='🟡 Only '+spcv.toFixed(1)+' samples per cycle. Legal (above 2), but the waveform looks coarse. Real systems oversample several× for clean demodulation.'; }
+    else { verdict.className='verdict good';
+      verdict.innerHTML='🟢 '+spcv.toFixed(0)+' samples per cycle — the array is a smooth, faithful copy of the analog tone.'; }
+    Plotly.react('syn_plot',[
+      {x:t,y:x,mode:'lines',line:{color:COL.cyan,width:1.8},hovertemplate:'%{x:.2f} µs → %{y:.2f}<extra></extra>'}
+    ], baseLayout({
+      xaxis:{title:'time (µs)', range:[0,t[t.length-1]]},
+      yaxis:{title:'amplitude x[n]'}
+    }), PCFG);
+  }
+  [kind,fEl,f2El,aEl,nEl].forEach(e=>e.addEventListener('input',draw));
+  kind.addEventListener('change',draw); draw();
+})();
+</script>
+<script>
+/* ---- Lab 2: Nyquist / aliasing ---- */
+(function(){
+  const fEl=document.getElementById('nyq_f'), fsEl=document.getElementById('nyq_fs'); if(!fEl) return;
+  const fl=document.getElementById('nyq_flbl'), fsl=document.getElementById('nyq_fslbl'),
+        nyO=document.getElementById('nyq_ny'), alO=document.getElementById('nyq_al'),
+        spcO=document.getElementById('nyq_spc'), verdict=document.getElementById('nyq_verdict');
+  function aliasFreq(f, fs){ return Math.abs(f - fs*Math.round(f/fs)); }
+  function draw(){
+    const f=+fEl.value*1e3, fs=+fsEl.value*1e6;
+    fl.textContent=+fEl.value; fsl.textContent=(+fsEl.value).toFixed(2);
+    const ny=fs/2, al=aliasFreq(f,fs);
+    nyO.textContent=(ny/1e3).toFixed(0); alO.textContent=(al/1e3).toFixed(0);
+    spcO.textContent=(fs/f).toFixed(1);
+    alO.style.color = al<f-1 ? COL.rose : COL.ink;
+    const win=20e-6;                       // 20 µs window
+    // true analog tone, finely sampled
+    const tt=[], yt=[]; const M=800;
+    for(let i=0;i<M;i++){ const x=i/(M-1)*win; tt.push(x*1e6); yt.push(Math.sin(2*Math.PI*f*x)); }
+    // ADC samples
+    const ts=[], ys=[]; const ns=Math.floor(win*fs);
+    for(let i=0;i<=ns;i++){ const x=i/fs; if(x>win)break; ts.push(x*1e6); ys.push(Math.sin(2*Math.PI*f*x)); }
+    // reconstructed alias (lowest-freq sine through the dots) — same phase at t=0
+    const ta=[], ya=[]; const dir=Math.sign(Math.cos(2*Math.PI*f*0))||1;
+    for(let i=0;i<M;i++){ const x=i/(M-1)*win; ta.push(x*1e6);
+      // alias has same samples; pick frequency al with correct fold sign
+      const k=Math.round(f/fs); const sgn = (f-fs*k)>=0?1:-1;
+      ya.push(Math.sin(2*Math.PI*al*sgn*x)); }
+    Plotly.react('nyq_plot',[
+      {x:tt,y:yt,mode:'lines',line:{color:'rgba(150,160,200,0.45)',width:1.4},name:'true tone',hovertemplate:'true %{y:.2f}<extra></extra>'},
+      {x:ta,y:ya,mode:'lines',line:{color:COL.rose,width:2,dash:'dash'},name:'alias',hovertemplate:'alias %{y:.2f}<extra></extra>'},
+      {x:ts,y:ys,mode:'markers',marker:{color:COL.cyan,size:7},name:'samples',hovertemplate:'sample %{y:.2f}<extra></extra>'}
+    ], baseLayout({
+      xaxis:{title:'time (µs)', range:[0,win*1e6]},
+      yaxis:{title:'amplitude', range:[-1.25,1.25]}
+    }), PCFG);
+    if(f>ny){ verdict.className='verdict bad';
+      verdict.innerHTML='🔴 f = '+(+fEl.value)+' kHz is <b>above Nyquist ('+(ny/1e3).toFixed(0)+' kHz)</b>. The samples (dots) fit the dashed '+(al/1e3).toFixed(0)+' kHz alias just as well as the true tone — the radio would report the wrong frequency. An anti-alias filter must remove this before the ADC.'; }
+    else if(f>ny*0.9){ verdict.className='verdict';
+      verdict.innerHTML='🟡 Close to the Nyquist edge. Still recoverable, but real filters are not brick-walls, so practical systems keep signals below ~0.8·fₛ/2.'; }
+    else { verdict.className='verdict good';
+      verdict.innerHTML='🟢 Below Nyquist: the dashed reconstruction sits exactly on the true tone. The samples capture this signal perfectly.'; }
+  }
+  fEl.addEventListener('input',draw); fsEl.addEventListener('input',draw); draw();
+})();
+</script>
+<script>
+/* ---- Lab 3a: complex plane rotation ---- */
+(function(){
+  const aEl=document.getElementById('cx_ang'); if(!aEl) return;
+  const dl=document.getElementById('cx_dlbl'), rl=document.getElementById('cx_rlbl'),
+        zO=document.getElementById('cx_z'), iO=document.getElementById('cx_i'), qO=document.getElementById('cx_q'),
+        mO=document.getElementById('cx_mag'), cv=document.getElementById('cx_canvas');
+  function draw(){
+    const deg=+aEl.value, th=deg*Math.PI/180, c=Math.cos(th), s=Math.sin(th);
+    dl.textContent=((deg%360+360)%360).toFixed(0); rl.textContent=( (th)%(2*Math.PI) ).toFixed(3);
+    zO.textContent=c.toFixed(2)+(s>=0?' + ':' − ')+Math.abs(s).toFixed(2)+'i';
+    iO.textContent=c.toFixed(2); iO.style.color=COL.amber;
+    qO.textContent=s.toFixed(2); qO.style.color=COL.green;
+    mO.textContent='1.00';
+    const x=cv.getContext('2d'), W=cv.width, H=cv.height;
+    x.fillStyle='#05060d'; x.fillRect(0,0,W,H);
+    const cx=W*0.30, cy=H*0.5, R=170;
+    // axes
+    x.strokeStyle='rgba(140,160,230,0.25)'; x.lineWidth=1;
+    x.beginPath(); x.moveTo(cx-R-26,cy); x.lineTo(cx+R+26,cy); x.moveTo(cx,cy-R-26); x.lineTo(cx,cy+R+26); x.stroke();
+    x.strokeStyle='rgba(140,160,230,0.5)'; x.lineWidth=1.5; x.beginPath(); x.arc(cx,cy,R,0,7); x.stroke();
+    // axis labels
+    x.font='12px -apple-system'; x.fillStyle=COL.amber; x.textAlign='center'; x.fillText('I  (real, cos)', cx+R-6, cy+18);
+    x.fillStyle=COL.green; x.fillText('Q (imag, sin)', cx+30, cy-R+2);
+    // unit ticks
+    x.fillStyle='#6f78a0'; x.fillText('1', cx+R+12, cy+14); x.fillText('i', cx-12, cy-R-8);
+    x.fillText('−1', cx-R-14, cy+14); x.fillText('−i', cx-12, cy+R+16);
+    const Px=cx+R*c, Py=cy-R*s;
+    // cos leg
+    x.strokeStyle=COL.amber; x.lineWidth=3; x.beginPath(); x.moveTo(cx,cy); x.lineTo(Px,cy); x.stroke();
+    // sin leg
+    x.strokeStyle=COL.green; x.beginPath(); x.moveTo(Px,cy); x.lineTo(Px,Py); x.stroke();
+    // radius
+    x.strokeStyle='rgba(232,236,255,0.95)'; x.lineWidth=2.4; x.beginPath(); x.moveTo(cx,cy); x.lineTo(Px,Py); x.stroke();
+    // angle arc
+    x.strokeStyle=COL.cyan; x.lineWidth=2; x.beginPath(); x.arc(cx,cy,30,0,-th,th>0?true:false); x.stroke();
+    // point
+    x.fillStyle='#fff'; x.beginPath(); x.arc(Px,Py,5,0,7); x.fill();
+    x.fillStyle=COL.cyan; x.fillText('θ', cx+44, cy-(s>=0?12:-20));
+    // right side: e^{iθ} = cos θ + i sin θ readout big
+    x.textAlign='left'; x.font='13px ui-monospace,Menlo,monospace'; x.fillStyle=COL.muted;
+    const bx=W*0.62, by=H*0.30;
+    x.fillText('e^( i·θ )  =  cos θ  +  i·sin θ', bx, by);
+    x.font='15px ui-monospace,Menlo,monospace'; x.fillStyle='#fff';
+    x.fillText('θ = '+((deg%360+360)%360).toFixed(0)+'°', bx, by+34);
+    x.fillStyle=COL.amber; x.fillText('cos θ = '+c.toFixed(3), bx, by+62);
+    x.fillStyle=COL.green; x.fillText('sin θ = '+s.toFixed(3), bx, by+90);
+    // quadrant note
+    x.font='12px -apple-system'; x.fillStyle=COL.muted;
+    const turns=Math.floor(((deg%360+360)%360)/90);
+    const lbl=['near +1 (0°)','near +i (90°)','near −1 (180°)','near −i (270°)'][turns];
+    x.fillText('current sector: '+lbl, bx, by+126);
+  }
+  document.getElementById('cx_muli').addEventListener('click',()=>{ aEl.value=(+aEl.value+90); if(+aEl.value>720)aEl.value=(+aEl.value)%360; draw(); });
+  document.getElementById('cx_reset').addEventListener('click',()=>{ aEl.value=0; draw(); });
+  aEl.addEventListener('input',draw); draw();
+})();
+
+/* ---- Lab 3b: spinning phasor -> I/Q shadows ---- */
+(function(){
+  const fEl=document.getElementById('ph_f'), spdEl=document.getElementById('ph_spd'); if(!fEl) return;
+  const fl=document.getElementById('ph_flbl'), sl=document.getElementById('ph_slbl'),
+        playBtn=document.getElementById('ph_play'), cv=document.getElementById('ph_canvas');
+  const x=cv.getContext('2d'); let running=true, phase=0, last=null;
+  playBtn.addEventListener('click',()=>{ running=!running; playBtn.textContent = running?'⏸ pause':'▶ play'; if(running){last=null; requestAnimationFrame(loop);} });
+  fEl.addEventListener('input',()=>fl.textContent=(+fEl.value).toFixed(1));
+  spdEl.addEventListener('input',()=>sl.textContent=(+spdEl.value).toFixed(1));
+  function render(){
+    const cycles=+fEl.value;
+    const W=cv.width, H=cv.height;
+    x.fillStyle='#05060d'; x.fillRect(0,0,W,H);
+    const cx=130, cy=H*0.5, R=120;
+    // circle + axes
+    x.strokeStyle='rgba(140,160,230,0.22)'; x.lineWidth=1;
+    x.beginPath(); x.moveTo(cx-R-12,cy); x.lineTo(cx+R+12,cy); x.moveTo(cx,cy-R-12); x.lineTo(cx,cy+R+12); x.stroke();
+    x.strokeStyle='rgba(140,160,230,0.45)'; x.lineWidth=1.4; x.beginPath(); x.arc(cx,cy,R,0,7); x.stroke();
+    const c=Math.cos(phase), s=Math.sin(phase), Px=cx+R*c, Py=cy-R*s;
+    // legs
+    x.strokeStyle=COL.amber; x.lineWidth=2.5; x.beginPath(); x.moveTo(cx,cy); x.lineTo(Px,cy); x.stroke();
+    x.strokeStyle=COL.green; x.beginPath(); x.moveTo(Px,cy); x.lineTo(Px,Py); x.stroke();
+    x.strokeStyle='rgba(232,236,255,0.9)'; x.lineWidth=2; x.beginPath(); x.moveTo(cx,cy); x.lineTo(Px,Py); x.stroke();
+    x.fillStyle='#fff'; x.beginPath(); x.arc(Px,Py,5,0,7); x.fill();
+    // waves on the right
+    const wx0=290, wx1=W-20, midy=cy, amp=R;
+    x.strokeStyle='rgba(140,160,230,0.18)'; x.lineWidth=1; x.beginPath(); x.moveTo(wx0,midy); x.lineTo(wx1,midy); x.stroke();
+    // cos (I, amber) and sin (Q, green) over `cycles` cycles, with current phase at the left edge
+    function wave(fn,color){ x.strokeStyle=color; x.lineWidth=2; x.beginPath();
+      for(let px=0;px<=(wx1-wx0);px++){ const frac=px/(wx1-wx0); const ang=phase - frac*cycles*2*Math.PI;
+        const yy=midy-amp*fn(ang); if(px===0)x.moveTo(wx0+px,yy); else x.lineTo(wx0+px,yy); } x.stroke(); }
+    wave(Math.cos, COL.amber); wave(Math.sin, COL.green);
+    // connectors from phasor shadows to wave start
+    x.setLineDash([3,3]); x.strokeStyle='rgba(255,178,74,0.5)'; x.beginPath(); x.moveTo(Px,cy); x.lineTo(wx0,midy-amp*c); x.stroke();
+    x.strokeStyle='rgba(94,230,168,0.5)'; x.beginPath(); x.moveTo(Px,Py); x.lineTo(wx0,midy-amp*s); x.stroke();
+    x.setLineDash([]);
+    x.font='12px -apple-system'; x.textAlign='left';
+    x.fillStyle=COL.amber; x.fillText('I = cos θ', wx0+8, midy-amp-2);
+    x.fillStyle=COL.green; x.fillText('Q = sin θ', wx0+90, midy-amp-2);
+    x.fillStyle=COL.muted; x.fillText('time →', wx1-46, midy+amp+14);
+  }
+  function loop(ts){
+    if(!running) return;
+    if(last==null) last=ts; const dt=(ts-last)/1000; last=ts;
+    phase += dt*(+spdEl.value)*2*Math.PI*0.5;
+    render(); requestAnimationFrame(loop);
+  }
+  fl.textContent='2.0'; sl.textContent='1.0'; render(); requestAnimationFrame(loop);
+})();
+</script>
+<script>
+/* ---- Lab 4: FFT ---- */
+(function(){
+  const f1=document.getElementById('ft_f1'); if(!f1) return;
+  const f2=document.getElementById('ft_f2'), f3=document.getElementById('ft_f3'), nEl=document.getElementById('ft_n');
+  const l1=document.getElementById('ft_f1lbl'), l2=document.getElementById('ft_f2lbl'), l3=document.getElementById('ft_f3lbl'),
+        nl=document.getElementById('ft_nlbl'), on2=document.getElementById('ft_on2'), on3=document.getElementById('ft_on3'),
+        cnt=document.getElementById('ft_count');
+  const fs=1e6, N=256;
+  let use2=true, use3=false;
+  let seed=999; function rnd(){ seed=(seed*1103515245+12345)&0x7fffffff; return seed/0x7fffffff; }
+  function randn(){ let u=0,v=0; while(!u)u=rnd(); while(!v)v=rnd(); return Math.sqrt(-2*Math.log(u))*Math.cos(2*Math.PI*v); }
+  on2.addEventListener('click',()=>{ use2=!use2; on2.textContent=use2?'●on':'○off'; on2.style.color=use2?COL.green:COL.muted; draw(); });
+  on3.addEventListener('click',()=>{ use3=!use3; on3.textContent=use3?'●on':'○off'; on3.style.color=use3?COL.green:COL.muted; draw(); });
+  function draw(){
+    const F1=+f1.value*1e3, F2=+f2.value*1e3, F3=+f3.value*1e3, sig=+nEl.value;
+    l1.textContent=+f1.value; l2.textContent=+f2.value; l3.textContent=+f3.value; nl.textContent=sig.toFixed(2);
+    cnt.textContent=1+(use2?1:0)+(use3?1:0);
+    const t=[], re=[], im=new Array(N).fill(0); seed=999;
+    for(let i=0;i<N;i++){ const tt=i/fs; let v=Math.sin(2*Math.PI*F1*tt);
+      if(use2)v+=Math.sin(2*Math.PI*F2*tt); if(use3)v+=Math.sin(2*Math.PI*F3*tt);
+      v+=sig*randn(); t.push(tt*1e6); re.push(v); }
+    Plotly.react('ft_time',[{x:t,y:re,mode:'lines',line:{color:COL.cyan,width:1.4},hovertemplate:'%{x:.2f} µs<extra></extra>'}],
+      baseLayout({margin:{l:46,r:14,t:8,b:34},xaxis:{title:'time (µs)'},yaxis:{title:'x[n]'}}), PCFG);
+    const mag=fftMagDb(re,im);
+    const fb=[], yb=[];
+    for(let k=0;k<N/2;k++){ fb.push(k*fs/N/1e3); yb.push(mag[k]*2/N); }
+    Plotly.react('ft_freq',[{x:fb,y:yb,type:'bar',marker:{color:COL.amber},width:fs/N/1e3*0.7,hovertemplate:'%{x:.0f} kHz → %{y:.2f}<extra></extra>'}],
+      baseLayout({margin:{l:46,r:14,t:8,b:40},xaxis:{title:'frequency (kHz)',range:[0,fs/2/1e3]},yaxis:{title:'|X(f)|'}}), PCFG);
+  }
+  [f1,f2,f3,nEl].forEach(e=>e.addEventListener('input',draw)); draw();
+})();
+</script>
+<script>
+/* ---- Lab 5: modulation ---- */
+(function(){
+  const kind=document.getElementById('mod_kind'); if(!kind) return;
+  const cEl=document.getElementById('mod_c'), dEl=document.getElementById('mod_d');
+  const cl=document.getElementById('mod_clbl'), dl=document.getElementById('mod_dlbl'), verdict=document.getElementById('mod_verdict');
+  const BITS=[1,0,1,1,0,0,1,0];
+  const SPB=60;                              // samples per bit for drawing
+  function draw(){
+    const k=kind.value, cyc=+cEl.value, dep=+dEl.value;
+    cl.textContent=cyc; dl.textContent=dep.toFixed(2);
+    const N=BITS.length*SPB; const t=[], msg=[], rf=[];
+    for(let i=0;i<N;i++){
+      const bi=Math.floor(i/SPB), b=BITS[bi], frac=i/SPB; t.push(frac);
+      msg.push(b);
+      const ph=2*Math.PI*cyc*frac;            // cyc cycles per bit
+      let v;
+      if(k==='am')   v=(1-dep + dep*b)*Math.cos(ph);
+      else if(k==='ook') v=b*Math.cos(ph);
+      else if(k==='fsk'){ const f=cyc*(1+dep*(2*b-1)); v=Math.cos(2*Math.PI*f*frac); }
+      else { v=Math.cos(ph + Math.PI*b); }    // bpsk
+      rf.push(v);
+    }
+    Plotly.react('mod_msg',[{x:t,y:msg,mode:'lines',line:{color:COL.green,width:2,shape:'hv'},hovertemplate:'bit %{y}<extra></extra>'}],
+      baseLayout({margin:{l:46,r:14,t:8,b:30},xaxis:{title:'',range:[0,BITS.length],tickvals:[0,1,2,3,4,5,6,7,8]},yaxis:{title:'data bit',range:[-0.3,1.3],tickvals:[0,1]}}), PCFG);
+    Plotly.react('mod_rf',[{x:t,y:rf,mode:'lines',line:{color:COL.cyan,width:1.3},hovertemplate:''}],
+      baseLayout({margin:{l:46,r:14,t:8,b:36},xaxis:{title:'time (bit periods)',range:[0,BITS.length]},yaxis:{title:'carrier',range:[-1.25,1.25]}}), PCFG);
+    const txt={
+      am:'🟡 <b>AM/ASK.</b> The carrier amplitude rises for a 1, falls for a 0. Demod = take the envelope |z|. This is the family NFC belongs to.',
+      ook:'🟢 <b>OOK.</b> The extreme of ASK — carrier fully on for 1, fully off for 0. NFC reader→card (Modified Miller) is 100% OOK; card→reader is OOK of a subcarrier.',
+      fsk:'🟢 <b>2-FSK.</b> A 1 uses a higher pitch, a 0 a lower pitch. Demod = instantaneous frequency, angle(z[n]·conj(z[n−1])). Bluetooth LE smooths this into GFSK.',
+      bpsk:'🟣 <b>BPSK.</b> Each 1 flips the carrier phase by 180° — note the abrupt sign reversals. Demod tracks phase. Wi-Fi stacks QAM (phase+amplitude) on dozens of these.'
+    };
+    verdict.className='verdict'+(k==='fsk'||k==='ook'?' good':'');
+    verdict.innerHTML=txt[k];
+    dEl.parentElement.style.opacity = (k==='bpsk') ? 0.35 : 1;
+  }
+  [kind,cEl,dEl].forEach(e=>e.addEventListener('input',draw));
+  kind.addEventListener('change',draw); draw();
+})();
+</script>
+<script>
+/* ---- Lab 6: NFC modulation chain ---- */
+(function(){
+  const byteEl=document.getElementById('nfc_byte'); if(!byteEl) return;
+  const mEl=document.getElementById('nfc_m'), ml=document.getElementById('nfc_mlbl'),
+        bitsO=document.getElementById('nfc_bits'), parO=document.getElementById('nfc_par'),
+        cv=document.getElementById('nfc_canvas'), x=cv.getContext('2d');
+  function bitsWithParity(b){ const bits=[]; for(let i=0;i<8;i++) bits.push((b>>i)&1); bits.push(1-(bits.reduce((a,c)=>a+c,0)&1)); return bits; }
+  function manchester(bits){ const out=[]; bits.forEach(b=> out.push(...(b?[1,0]:[0,1]))); return out; }
+  function draw(){
+    let v=parseInt(byteEl.value,16); if(isNaN(v)) v=0x04; v&=0xFF;
+    const m=+mEl.value/100; ml.textContent=+mEl.value;
+    const bits=bitsWithParity(v), hb=manchester(bits);
+    bitsO.textContent=bits.slice(0,8).join('')+'|'+bits[8];
+    const parityOdd=(bits.reduce((a,c)=>a+c,0)&1)===1;
+    parO.textContent=parityOdd?'OK':'—'; parO.style.color=parityOdd?COL.green:COL.muted;
+    const W=cv.width, H=cv.height; x.fillStyle='#05060d'; x.fillRect(0,0,W,H);
+    const L=60, R=W-16, plotW=R-L, nEtu=bits.length;
+    const x0=e=>L+plotW*e/nEtu;
+    const rows=[0.13,0.36,0.62,0.88].map(f=>H*f);
+    const rh=H*0.19;
+    x.font='11px -apple-system'; x.textAlign='right'; x.fillStyle=COL.muted;
+    // etu grid
+    for(let k=0;k<=nEtu;k++){ x.strokeStyle='rgba(140,160,230,0.12)'; x.lineWidth=k%1===0?1:0.5;
+      x.beginPath(); x.moveTo(x0(k),20); x.lineTo(x0(k),H-10); x.stroke(); }
+    // Row 1: data bits step
+    x.fillStyle=COL.amber; x.fillText('data bits', L-6, rows[0]-rh/2);
+    x.strokeStyle=COL.green; x.lineWidth=2; x.beginPath();
+    for(let k=0;k<nEtu;k++){ const y=rows[0]+rh/2 - bits[k]*rh;
+      if(k===0)x.moveTo(x0(k),y); else x.lineTo(x0(k),y); x.lineTo(x0(k+1),y); }
+    x.stroke();
+    x.font='10px ui-monospace,monospace'; x.textAlign='center';
+    for(let k=0;k<nEtu;k++){ x.fillStyle = k<8?COL.muted:COL.violet;
+      x.fillText(bits[k], x0(k+0.5), rows[0]-rh/2-6);
+      x.fillText(k<8?('b'+k):'P', x0(k+0.5), rows[0]+rh/2+14); }
+    // Row 2: manchester halfbits
+    x.fillStyle=COL.cyan; x.textAlign='right'; x.font='11px -apple-system'; x.fillText('Manchester', L-6, rows[1]-rh/2);
+    x.strokeStyle=COL.cyan; x.lineWidth=2; x.beginPath();
+    const nHB=hb.length, xh=h=>L+plotW*h/(nHB);
+    for(let k=0;k<nHB;k++){ const y=rows[1]+rh/2 - hb[k]*rh;
+      if(k===0)x.moveTo(xh(k),y); else x.lineTo(xh(k),y); x.lineTo(xh(k+1),y); }
+    x.stroke();
+    // Row 3: gated subcarrier (8 cycles per etu => 4 per half-etu)
+    x.fillStyle=COL.violet; x.textAlign='right'; x.fillText('subcarrier', L-6, rows[2]-rh/2);
+    x.fillText('847.5 kHz', L-6, rows[2]-rh/2+13);
+    x.strokeStyle=COL.violet; x.lineWidth=1; x.beginPath();
+    const SAMP=nEtu*8*8;                   // 8 subcarrier cyc/etu, 8 samples/cyc
+    for(let i=0;i<=SAMP;i++){ const etu=i/(8*8); const hbIndex=Math.floor(etu*2);
+      const gate=hb[Math.min(hbIndex,nHB-1)];
+      const sub=Math.sin(2*Math.PI*8*etu);     // 8 cycles per etu
+      const y=rows[2]+rh/2 - (gate? (sub*0.5+0.5):0.5)*rh;
+      const xx=x0(etu); if(i===0)x.moveTo(xx,y); else x.lineTo(xx,y); }
+    x.stroke();
+    // Row 4: envelope at reader = 1 + m*mod_sub (rectified subcarrier where on)
+    x.fillStyle=COL.rose; x.textAlign='right'; x.fillText('AM envelope', L-6, rows[3]-rh/2);
+    x.fillText('at reader', L-6, rows[3]-rh/2+13);
+    const base=rows[3]+rh/2;
+    x.strokeStyle='rgba(140,160,230,0.4)'; x.setLineDash([4,3]); x.lineWidth=1;
+    x.beginPath(); x.moveTo(L, base-0.5*rh); x.lineTo(R, base-0.5*rh); x.stroke(); x.setLineDash([]);
+    x.strokeStyle=COL.rose; x.lineWidth=1.4; x.beginPath();
+    for(let i=0;i<=SAMP;i++){ const etu=i/(8*8); const hbIndex=Math.floor(etu*2);
+      const gate=hb[Math.min(hbIndex,nHB-1)];
+      const sub=Math.sin(2*Math.PI*8*etu);
+      const env=1 + (gate? m*sub : 0);            // 1.0 baseline +/- m wobble
+      const y=base - (env-1+0.5)/1*rh;            // map [0.5..1.5] roughly into row
+      const xx=x0(etu); if(i===0)x.moveTo(xx,y); else x.lineTo(xx,y); }
+    x.stroke();
+  }
+  byteEl.addEventListener('input',draw); mEl.addEventListener('input',draw); draw();
+})();
+</script>
+<script>
+/* ---- Lab 7: GFSK vs FSK + BLE channel map ---- */
+(function(){
+  const btEl=document.getElementById('ble_bt'); if(!btEl) return;
+  const spsEl=document.getElementById('ble_sps'), btl=document.getElementById('ble_btlbl'), spsl=document.getElementById('ble_spslbl');
+  const chanCv=document.getElementById('ble_chan');
+  const BITS=[1,1,0,1,0,0,0,1,1,0];
+  function gaussKernel(sps, bt){
+    const std=sps*0.5/(2.3548*bt); const rad=Math.max(1,Math.ceil(3*std)); const k=[]; let s=0;
+    for(let i=-rad;i<=rad;i++){ const v=Math.exp(-0.5*(i/std)*(i/std)); k.push(v); s+=v; }
+    return k.map(v=>v/s);
+  }
+  function draw(){
+    const bt=+btEl.value, sps=+spsEl.value; btl.textContent=bt.toFixed(2); spsl.textContent=sps;
+    const nrz=[]; BITS.forEach(b=>{ for(let i=0;i<sps;i++) nrz.push(2*b-1); });
+    // GFSK = convolve nrz with gaussian
+    const ker=gaussKernel(sps,bt), rad=(ker.length-1)/2;
+    const g=nrz.map((_,i)=>{ let acc=0; for(let j=-rad;j<=rad;j++){ const idx=i+j; const val=(idx<0||idx>=nrz.length)? nrz[Math.max(0,Math.min(nrz.length-1,idx))]:nrz[idx]; acc+=val*ker[j+rad]; } return acc; });
+    const t=nrz.map((_,i)=>i/sps);
+    Plotly.react('ble_plot',[
+      {x:t,y:nrz,mode:'lines',line:{color:'rgba(150,160,200,0.5)',width:1.6,shape:'hv'},name:'FSK',hovertemplate:'FSK %{y:.2f}<extra></extra>'},
+      {x:t,y:g,mode:'lines',line:{color:COL.amber,width:2.4},name:'GFSK',hovertemplate:'GFSK %{y:.2f}<extra></extra>'}
+    ], baseLayout({xaxis:{title:'time (symbol periods)',range:[0,BITS.length]},
+      yaxis:{title:'instantaneous freq (±dev)',range:[-1.4,1.4]}}), PCFG);
+    // channel map
+    const x=chanCv.getContext('2d'), W=chanCv.width, H=chanCv.height;
+    x.fillStyle='#05060d'; x.fillRect(0,0,W,H);
+    const L=20, Rr=W-20, y=H*0.5;
+    x.strokeStyle='rgba(140,160,230,0.3)'; x.lineWidth=1; x.beginPath(); x.moveTo(L,y); x.lineTo(Rr,y); x.stroke();
+    const adv={37:1,38:1,39:1};
+    // BLE channel index -> frequency ordering: 37=2402,38=2426,39=2480, data 0..36 interleaved.
+    // For the map we just place by frequency 2402..2480.
+    for(let k=0;k<40;k++){
+      // map data channel index to frequency per BLE: ch0=2404... but simpler: show 40 ticks by freq
+      const freq=2402+2*k; const px=L+(Rr-L)*(freq-2402)/(2480-2402);
+      const isAdv=(freq===2402||freq===2426||freq===2480);
+      x.strokeStyle=isAdv?COL.amber:'rgba(63,208,255,0.6)'; x.lineWidth=isAdv?3:1.5;
+      x.beginPath(); x.moveTo(px,y-(isAdv?22:12)); x.lineTo(px,y+(isAdv?22:12)); x.stroke();
+      if(isAdv){ x.fillStyle=COL.amber; x.font='10px -apple-system'; x.textAlign='center';
+        x.fillText(freq===2402?'37':freq===2426?'38':'39', px, y-26); }
+    }
+    x.fillStyle=COL.muted; x.font='11px -apple-system'; x.textAlign='left'; x.fillText('2402 MHz', L, y+38);
+    x.textAlign='right'; x.fillText('2480 MHz', Rr, y+38);
+    x.textAlign='center'; x.fillText('40 channels · 2 MHz spacing · amber = advertising (37/38/39)', W/2, H-6);
+  }
+  btEl.addEventListener('input',draw); spsEl.addEventListener('input',draw); draw();
+})();
+</script>
+<script>
+/* ---- Lab 8: QAM constellation + OFDM symbol ---- */
+(function(){
+  const ordEl=document.getElementById('wifi_ord'); if(!ordEl) return;
+  const nEl=document.getElementById('wifi_n'), nl=document.getElementById('wifi_nlbl'),
+        bpsEl=document.getElementById('wifi_bps'), verdict=document.getElementById('wifi_verdict');
+  let seed=2024; function rnd(){ seed=(seed*1103515245+12345)&0x7fffffff; return seed/0x7fffffff; }
+  function randn(){ let u=0,v=0; while(!u)u=rnd(); while(!v)v=rnd(); return Math.sqrt(-2*Math.log(u))*Math.cos(2*Math.PI*v); }
+  function points(ord){
+    if(ord===2) return [[-1,0],[1,0]];
+    if(ord===4){ const p=[]; [-1,1].forEach(i=>[-1,1].forEach(q=>p.push([i/Math.SQRT2,q/Math.SQRT2]))); return p; }
+    const m=Math.sqrt(ord), lev=[]; for(let i=0;i<m;i++) lev.push(2*i-(m-1));
+    const norm=Math.sqrt(lev.reduce((a,c)=>a+c*c,0)/m*2);
+    const p=[]; lev.forEach(i=>lev.forEach(q=>p.push([i/norm,q/norm]))); return p;
+  }
+  function draw(){
+    const ord=+ordEl.value, sig=+nEl.value; nl.textContent=sig.toFixed(2);
+    bpsEl.textContent=Math.log2(ord);
+    const ideal=points(ord);
+    // noisy received cloud: several samples per point
+    seed=2024; const rx=[]; const reps=Math.max(2,Math.floor(256/ideal.length));
+    ideal.forEach(p=>{ for(let r=0;r<reps;r++) rx.push([p[0]+sig*randn(), p[1]+sig*randn()]); });
+    Plotly.react('wifi_const',[
+      {x:rx.map(p=>p[0]),y:rx.map(p=>p[1]),mode:'markers',marker:{color:COL.cyan,size:4,opacity:0.5},hovertemplate:'%{x:.2f}, %{y:.2f}i<extra></extra>'},
+      {x:ideal.map(p=>p[0]),y:ideal.map(p=>p[1]),mode:'markers',marker:{color:COL.amber,size:9,symbol:'cross'},hovertemplate:'ideal<extra></extra>'}
+    ], baseLayout({margin:{l:50,r:14,t:10,b:42},
+      xaxis:{title:'I (in-phase)',range:[-1.6,1.6],zeroline:true},
+      yaxis:{title:'Q (quadrature)',range:[-1.6,1.6],zeroline:true,scaleanchor:'x'}}), PCFG);
+    // OFDM time symbol: IFFT of random QAM points (real part shown)
+    const N=64; const re=new Array(N), im=new Array(N);
+    for(let k=0;k<N;k++){ const p=ideal[Math.floor(rnd()*ideal.length)]; re[k]=p[0]; im[k]=p[1]; }
+    const tre=new Array(N).fill(0), tim=new Array(N).fill(0);
+    for(let nn=0;nn<N;nn++){ let sr=0,si=0; for(let k=0;k<N;k++){ const a=2*Math.PI*k*nn/N;
+      const c=Math.cos(a), s=Math.sin(a); sr+=re[k]*c-im[k]*s; si+=re[k]*s+im[k]*c; } tre[nn]=sr/N; tim[nn]=si/N; }
+    const tx=Array.from({length:N},(_,i)=>i);
+    Plotly.react('wifi_time',[
+      {x:tx,y:tre,mode:'lines',line:{color:COL.green,width:1.6},name:'I',hovertemplate:'I %{y:.3f}<extra></extra>'},
+      {x:tx,y:tim,mode:'lines',line:{color:COL.violet,width:1.6},name:'Q',hovertemplate:'Q %{y:.3f}<extra></extra>'}
+    ], baseLayout({margin:{l:50,r:14,t:10,b:40},xaxis:{title:'sample within OFDM symbol'},yaxis:{title:'amplitude (I green, Q violet)'}}), PCFG);
+    const minDist={2:2,4:Math.SQRT2,16:2/Math.sqrt(10),64:2/Math.sqrt(42)}[ord];
+    const margin=minDist/2/(sig||1e-6);
+    if(sig===0||margin>4){ verdict.className='verdict good';
+      verdict.innerHTML='🟢 Clean separation — every received dot sits near its ideal point. This link can safely run '+ordEl.options[ordEl.selectedIndex].text+'.'; }
+    else if(margin>2){ verdict.className='verdict';
+      verdict.innerHTML='🟡 Clouds are spreading but still distinct. Usable, with some coding overhead to catch the occasional slip.'; }
+    else { verdict.className='verdict bad';
+      verdict.innerHTML='🔴 Neighbouring constellation points overlap — bit errors. A real radio would drop to a lower-order modulation (fewer bits, more robust) until the clouds separate again.'; }
+  }
+  ordEl.addEventListener('change',draw); nEl.addEventListener('input',draw); draw();
+})();
+</script>
+<script>
+/* =======================================================================
+   GLOSSARY DATA  (consumed by the glossary engine)
+======================================================================= */
+const W='https://en.wikipedia.org/wiki/';
+window.SDR_GLOSS={
+  'sample-rate':{label:'Sample rate',wiki:W+'Sampling_(signal_processing)',
+    def:'How many samples per second an ADC takes, fs. It sets the time grid t = n/fs and, with Nyquist, the highest frequency representable.',terms:['sample rate','sample-rate','samples per second']},
+  'sampling':{label:'Sampling',wiki:W+'Sampling_(signal_processing)',
+    def:'Recording a continuous signal as discrete values at fixed instants. Everything between samples is discarded — the array IS the signal.',terms:['sampling','sampled','samples']},
+  'nyquist':{label:'Nyquist limit',wiki:W+'Nyquist%E2%80%93Shannon_sampling_theorem',
+    def:'Half the sample rate, fs/2. A real signal is captured perfectly only if it contains no frequency at or above this limit.',terms:['Nyquist limit','Nyquist','Nyquist–Shannon']},
+  'aliasing':{label:'Aliasing',wiki:W+'Aliasing',
+    def:'A frequency above Nyquist folds down and masquerades as a lower one the samples fit equally well. Removed by an anti-alias filter before the ADC.',terms:['aliases','aliasing','alias','anti-alias filter']},
+  'samples-per-symbol':{label:'Samples per symbol',wiki:W+'Symbol_rate',
+    def:'sps = sample rate ÷ symbol rate — how many IQ samples cover one transmitted bit/symbol. Oversampling lets a decoder average each symbol against noise.',terms:['samples/symbol','samples per symbol','samples/bit']},
+  'iq':{label:'IQ (complex) samples',wiki:W+'In-phase_and_quadrature_components',
+    def:'Each SDR sample is a complex number: I (in-phase, real) and Q (quadrature, imaginary). Together they preserve rotation direction, so +f and −f are distinguishable.',terms:['complex IQ','IQ','I and Q','I/Q']},
+  'in-phase':{label:'In-phase / quadrature',wiki:W+'In-phase_and_quadrature_components',
+    def:'The two components of a complex sample: I = cos part (in-phase), Q = sin part (quadrature, 90° apart). The real and imaginary axes of the signal.',terms:['in-phase','quadrature']},
+  'complex-number':{label:'Complex number',wiki:W+'Complex_number',
+    def:'A point a+bi in a 2-D plane: a along the real axis, b along the imaginary axis. Multiplication can both scale and rotate.',terms:['complex number','complex numbers']},
+  'imaginary-unit':{label:'Imaginary unit i',wiki:W+'Imaginary_unit',
+    def:'i = √−1, the quarter-turn: multiplying by i rotates a point 90°. i² = −1 (two quarter-turns = a half-turn = ×−1).',terms:['imaginary axis','imaginary numbers','imaginary unit']},
+  'euler-formula':{label:'Euler’s formula',wiki:W+'Euler%27s_formula',
+    def:'e^{iθ} = cos θ + i sin θ — a point θ radians around the unit circle. The bridge between rotation and the sine/cosine pair.',terms:['Euler’s formula','Euler formula','Euler’s identity']},
+  'phasor':{label:'Phasor',wiki:W+'Phasor',
+    def:'A rotating complex number e^{iωt} representing a sinusoid by its amplitude and phase. Its I and Q shadows are a cosine and a sine.',terms:['phasor','rotating phasor','spinning phasor']},
+  'radian':{label:'Radian',wiki:W+'Radian',
+    def:'The natural unit of angle: arc length on a unit circle. A full turn is 2π radians; a quarter-turn (×i) is π/2.',terms:['radians','radian']},
+  'unit-circle':{label:'Unit circle',wiki:W+'Unit_circle',
+    def:'A circle of radius 1; the point at angle θ has coordinates (cos θ, sin θ). The picture that turns rotation into sinusoids.',terms:['unit circle']},
+  'carrier':{label:'Carrier',wiki:W+'Carrier_wave',
+    def:'A steady sinusoid e^{i2πft} that carries no data until one of its knobs — amplitude, frequency or phase — is modulated.',terms:['carrier wave','carrier']},
+  'fourier-transform':{label:'Fourier transform',wiki:W+'Fourier_transform',
+    def:'Decomposes a signal into the spinning phasors (frequencies) that sum to make it — the recipe of how much of each frequency is present.',terms:['Fourier transform','Fourier']},
+  'fft':{label:'FFT / DFT',wiki:W+'Fast_Fourier_transform',
+    def:'The fast O(N log N) algorithm for the discrete Fourier transform. np.fft.fft turns N time samples into N frequency bins spaced fs/N apart.',terms:['FFT','DFT','inverse FFT','IFFT']},
+  'spectrum':{label:'Spectrum / PSD',wiki:W+'Spectral_density',
+    def:'A signal’s energy versus frequency. A pure tone is a sharp spike; the power spectral density (e.g. Welch’s method) shows it above the noise floor.',terms:['power spectrum','spectrum','PSD']},
+  'modulation':{label:'Modulation',wiki:W+'Modulation',
+    def:'Varying a carrier’s amplitude, frequency, or phase over time to carry data. Each scheme has a matching demodulator that reads the knob back.',terms:['modulation','modulate','modulated','demodulator','demod']},
+  'am-ask':{label:'AM / ASK / OOK',wiki:W+'Amplitude-shift_keying',
+    def:'Amplitude modulation: encode data by making the carrier louder/softer. OOK (on-off keying) is the on/off extreme — NFC’s scheme. Demod = envelope |z|.',terms:['ASK','OOK','on-off keying','AM']},
+  'fsk':{label:'FSK',wiki:W+'Frequency-shift_keying',
+    def:'Frequency-shift keying: a higher pitch for 1, lower for 0. Demod = instantaneous frequency, angle(z[n]·conj(z[n−1])).',terms:['2-FSK','FSK']},
+  'gfsk':{label:'GFSK',wiki:W+'Frequency-shift_keying#Gaussian_frequency-shift_keying',
+    def:'FSK with the bits Gaussian-smoothed first (described by the BT product) to narrow the spectrum, at the cost of inter-symbol interference. Bluetooth LE uses BT=0.5.',terms:['GFSK','BT','bandwidth-time product']},
+  'psk':{label:'PSK / BPSK',wiki:W+'Phase-shift_keying',
+    def:'Phase-shift keying: flip the carrier phase (180° for BPSK) to encode bits. The basis of QAM and OFDM symbols.',terms:['BPSK','PSK','phase-shift keying']},
+  'isi':{label:'Inter-symbol interference',wiki:W+'Intersymbol_interference',
+    def:'When pulse-shaping or a channel smears each symbol into its neighbours. GFSK trades some ISI for a narrower spectrum, which is why its decoder uses a differential detector.',terms:['inter-symbol interference','intersymbol interference','ISI']},
+  'nfc':{label:'NFC / ISO 14443',wiki:W+'ISO/IEC_14443',
+    def:'Near-field communication at 13.56 MHz. A passive card powered by the reader’s field answers by load-modulating an 847.5 kHz subcarrier.',terms:['NFC','ISO 14443-A','ISO 14443']},
+  'load-modulation':{label:'Load modulation',wiki:W+'Load_modulation',
+    def:'A passive card switching a resistor across its coil, nudging the reader’s carrier amplitude by a few percent — its only way to "transmit".',terms:['load modulation','load-modulating','load modulating']},
+  'subcarrier':{label:'Subcarrier',wiki:W+'Subcarrier',
+    def:'A secondary carrier riding inside the main one. NFC cards answer on fc/16 = 847.5 kHz; Wi-Fi splits its channel into 64 OFDM subcarriers.',terms:['subcarrier','subcarriers']},
+  'manchester':{label:'Manchester code',wiki:W+'Manchester_code',
+    def:'A self-clocking line code: 1 = high-then-low, 0 = low-then-high. Every bit has a mid-edge and is DC-balanced. NFC cards use it on the subcarrier.',terms:['Manchester']},
+  'envelope':{label:'Envelope detection',wiki:W+'Envelope_detector',
+    def:'Recovering a carrier’s amplitude over time, |z| (or via a Hilbert transform). The AM demodulator — how a reader reads an NFC card’s ripple.',terms:['envelope','AM envelope','Hilbert transform']},
+  'ble':{label:'Bluetooth LE',wiki:W+'Bluetooth_Low_Energy',
+    def:'Bluetooth Low Energy: 2.4 GHz, 1 Msym/s GFSK, 40 channels 2 MHz apart, with channels 37/38/39 reserved for advertising.',terms:['Bluetooth Low Energy','Bluetooth LE','BLE','advertising']},
+  'ism-band':{label:'2.4 GHz ISM band',wiki:W+'ISM_radio_band',
+    def:'The license-free 2.400–2.4835 GHz band shared by Wi-Fi, Bluetooth, and countless toy remotes — where decode_remote.py goes hunting.',terms:['2.4 GHz ISM band','ISM band']},
+  'ofdm':{label:'OFDM',wiki:W+'Orthogonal_frequency-division_multiplexing',
+    def:'Orthogonal frequency-division multiplexing: send data over many slow, orthogonal subcarriers at once, built by an IFFT. Robust to multipath; the heart of Wi-Fi.',terms:['OFDM','orthogonal']},
+  'qam':{label:'QAM',wiki:W+'Quadrature_amplitude_modulation',
+    def:'Quadrature amplitude modulation: encode bits as a point in the complex plane (amplitude + phase). 16-QAM = 4 bits/symbol, 64-QAM = 6.',terms:['QAM','16-QAM','64-QAM','QPSK']},
+  'constellation':{label:'Constellation diagram',wiki:W+'Constellation_diagram',
+    def:'A scatter of received IQ symbols against their ideal points. Tight clusters = a clean link; overlapping clouds = bit errors.',terms:['constellation diagram','constellation']},
+  'multipath':{label:'Multipath',wiki:W+'Multipath_propagation',
+    def:'Radio echoes arriving by multiple paths, smearing fast signals. OFDM defeats it by using many slow subcarriers plus a cyclic prefix.',terms:['multipath','echoes']},
+  'correlation':{label:'Cross-correlation',wiki:W+'Cross-correlation',
+    def:'Sliding one signal past another and summing the product to measure alignment. Underlies the FFT (vs. a test phasor) and packet detection (vs. an access code).',terms:['cross-correlate','cross-correlates','correlation']},
+  'sine':{label:'Sine / sinusoid',wiki:W+'Sine_and_cosine',
+    def:'The height of a point on the unit circle at angle θ; spun at a steady rate it traces the wave A·sin(2πft+φ). Every carrier and tone in this companion is one of these, or a sum of them.',terms:['sine wave','sinusoid','sine']},
+  'amplitude':{label:'Amplitude',wiki:W+'Amplitude',
+    def:'A in A·sin(2πft+φ): the radius of the generating circle and the height of the wave’s peaks. A sine’s power is A²/2 — the quantity AM/ASK/OOK modulate.',terms:['amplitude']},
+  'phase':{label:'Phase',wiki:W+'Phase_(waves)',
+    def:'Where in its cycle a wave is, measured as an angle. φ is the starting angle of the spinning point; instantaneous phase advances 2πf radians per second — and PSK encodes bits by jumping it.',terms:['phase offset','phase']},
+  'gaussian':{label:'Gaussian (normal) distribution',wiki:W+'Normal_distribution',
+    def:'The bell curve: values cluster around a mean with spread set by σ — 68% within ±1σ, 95% within ±2σ, 99.7% within ±3σ. Receiver noise is Gaussian by the central limit theorem.',terms:['Gaussian noise','Gaussian distribution','bell curve','Gaussian-smoothed','Gaussian']},
+  'std-dev':{label:'Standard deviation σ',wiki:W+'Standard_deviation',
+    def:'The typical distance of a random value from its mean — the width of the bell curve. σ² is the variance, which for zero-mean noise is the noise power. Every "noise σ" slider sets exactly this.',terms:['standard deviation']},
+  'clt':{label:'Central limit theorem',wiki:W+'Central_limit_theorem',
+    def:'Add up many small independent random effects and the total is bell-curve distributed, regardless of the shape of each piece — the reason thermal receiver noise is Gaussian.',terms:['central limit theorem']},
+  'awgn':{label:'AWGN',wiki:W+'Additive_white_Gaussian_noise',
+    def:'Additive white Gaussian noise — the standard receiver-noise model: it adds to the signal sample by sample (additive), every sample independent so all frequencies get equal power (white), bell-curve distributed (Gaussian).',terms:['additive white Gaussian noise','AWGN']},
+  'snr':{label:'SNR',wiki:W+'Signal-to-noise_ratio',
+    def:'Signal-to-noise ratio: signal power over noise power, usually quoted in dB. For a tone of amplitude A in noise of std-dev σ, SNR = 10·log₁₀((A²/2)/σ²).',terms:['signal-to-noise ratio','SNR']},
+  'decibel':{label:'Decibel (dB)',wiki:W+'Decibel',
+    def:'A log scale for power ratios: 10·log₁₀(P₁/P₀) dB. +3 dB ≈ ×2 power, +10 dB = ×10, +20 dB = ×100; 0 dB = equal. Logs turn chains of gains and losses into simple sums.',terms:['decibels','decibel','dB']}
+};
+
+/* =======================================================================
+   QUIZ DATA
+======================================================================= */
+window.SDR_QUIZ=[
+  {q:"Geometrically, sin θ is…",
+    opts:["The area of a wedge of angle θ","The height of the point at angle θ on the unit circle","The slope of the radius","Half the circumference"],a:1,
+    exp:"On a circle of radius 1, the point at angle θ sits at (cos θ, sin θ): cosine is how far across, sine is how high. Spin the point and the height traces the sine wave."},
+  {q:"In x(t) = A·sin(2πft + φ), what does φ control?",
+    opts:["The loudness of the tone","The starting angle — where in its cycle the wave begins","How many samples are taken","The bandwidth"],a:1,
+    exp:"φ is the phase offset: the angle of the spinning point at t = 0. A sets the circle's radius (amplitude) and f its rotation rate (frequency)."},
+  {q:"Noise samples are drawn from a Gaussian with σ = 0.3. Roughly what fraction land within ±0.3 of zero?",
+    opts:["50%","68%","95%","99.7%"],a:1,
+    exp:"±1σ always covers about 68% of a Gaussian, ±2σ about 95%, ±3σ about 99.7% — whatever the value of σ. That rule of thumb is what makes σ such a useful single number."},
+  {q:"A link's SNR improves by +3 dB. The signal-to-noise power ratio…",
+    opts:["Increases by 3%","Roughly doubles","Goes up tenfold","Is unchanged"],a:1,
+    exp:"Decibels are logarithmic: 10·log₁₀(2) ≈ 3, so +3 dB ≈ ×2 in power. +10 dB is ×10, +20 dB is ×100."},
+  {q:"What does a software-defined radio actually hand your program?",
+    opts:["Decoded audio","A stream of (often complex) samples — numbers","A list of stations","A spectrum image"],a:1,
+    exp:"An SDR just measures the antenna voltage millions of times a second and gives you the array. Everything else is DSP you write."},
+  {q:"In <code>t = np.arange(n)/fs</code>, what is <code>fs</code>?",
+    opts:["The signal frequency","The sample rate (samples per second)","The number of samples","The phase"],a:1,
+    exp:"Dividing the integer sample indices by the sample rate fs turns them into seconds — the time grid the signal lives on."},
+  {q:"A signal is sampled at 1 MS/s. The highest frequency it can faithfully represent is…",
+    opts:["1 MHz","500 kHz","2 MHz","250 kHz"],a:1,
+    exp:"The Nyquist limit is fs/2 = 500 kHz. Anything at or above it aliases."},
+  {q:"A 600 kHz tone sampled at 1 MS/s appears as a tone at…",
+    opts:["600 kHz","400 kHz","100 kHz","1 MHz"],a:1,
+    exp:"Aliasing folds it: |600k − 1M·round(0.6)| = |600k − 1M| = 400 kHz. The samples can't tell the two apart."},
+  {q:"Why does <code>decode_fsk.py</code> capture at 2 MS/s for a 50 ksym/s link?",
+    opts:["To save disk space","To get ~40 samples/symbol so it can average each symbol against noise","Because the radio can't go slower","To alias the signal on purpose"],a:1,
+    exp:"sps = fs/sym_rate = 40. Oversampling lets the boxcar matched filter average a whole symbol, far more robust than one sample."},
+  {q:"Multiplying a point on the number line by −1 is geometrically a…",
+    opts:["Quarter-turn (90°)","Half-turn (180°) rotation","Scaling only","Full turn"],a:1,
+    exp:"×(−1) swings a point to the opposite side of the origin — a 180° rotation. That framing leads straight to i as the quarter-turn."},
+  {q:"The imaginary unit i is defined by which property?",
+    opts:["i = 0","i² = −1","i = 1/0","i = π"],a:1,
+    exp:"Two quarter-turns equal a half-turn (×−1), so i·i = −1, i.e. i = √−1."},
+  {q:"Euler's formula states that e^{iθ} equals…",
+    opts:["cos θ − sin θ","cos θ + i·sin θ","i·cos θ + sin θ","θ²"],a:1,
+    exp:"e^{iθ} = cos θ + i sin θ: a point θ radians around the unit circle, its real part cos and imaginary part sin."},
+  {q:"In e^{iθ}, what does the imaginary exponent do to the starting value 1?",
+    opts:["Grows it exponentially","Rotates it around a circle","Sends it to infinity","Nothing"],a:1,
+    exp:"Real exponents grow; imaginary exponents rotate. e^{iπ} rotates 1 a half-circle to −1 — Euler's identity."},
+  {q:"A full turn around the unit circle is how many radians?",
+    opts:["π","2π","π/2","360"],a:1,
+    exp:"Arc length of the whole rim is 2πr, so the angle is 2πr/r = 2π radians."},
+  {q:"Why is each SDR sample complex (two numbers, I and Q)?",
+    opts:["To use more memory","So +f and −f are distinguishable and the full bandwidth fs is usable","Because sine needs two values","For error correction"],a:1,
+    exp:"I and Q preserve rotation direction, so positive and negative frequencies separate — complex sampling uses the whole fs of bandwidth."},
+  {q:"The FFT of a signal made of three pure tones shows…",
+    opts:["One broad hump","Three sharp spikes at those frequencies","A flat line","Random noise"],a:1,
+    exp:"The transform un-mixes addition: each tone correlates with exactly one frequency bin, producing a spike there."},
+  {q:"<code>decode_nfc.py</code> takes a power spectrum of a card response mainly to…",
+    opts:["Compress the file","Confirm the 847.5 kHz subcarrier is present before decoding","Measure temperature","Find the Wi-Fi channel"],a:1,
+    exp:"The fc/16 = 847.5 kHz load-modulation line appears as a bright peak, proving the card is answering."},
+  {q:"To demodulate FSK, you compute…",
+    opts:["The envelope |z|","The instantaneous frequency, angle(z[n]·conj(z[n−1]))","The phase only","The FFT length"],a:1,
+    exp:"Frequency is the rate of phase change; that one-line operator is exactly what decode_fsk.py and decode_remote.py use."},
+  {q:"NFC's modulation family (card answering) is fundamentally…",
+    opts:["Phase modulation","Amplitude / on-off keying of a subcarrier","Frequency hopping","OFDM"],a:1,
+    exp:"The card OOK-keys an 847.5 kHz subcarrier via load modulation, seen by the reader as a small AM ripple."},
+  {q:"In Manchester coding, a logic 1 is…",
+    opts:["A constant high","Subcarrier on in the first half-etu, off in the second","Always a pause","Two highs"],a:1,
+    exp:"1 = high-then-low, 0 = low-then-high. Every bit has a guaranteed mid-edge and is DC-balanced."},
+  {q:"Bluetooth LE's three advertising channels (37/38/39) are spread across the band so that…",
+    opts:["They sound better","Interference can't block all three at once","They use less power","They avoid Wi-Fi entirely"],a:1,
+    exp:"Placed at 2402/2426/2480 MHz, far apart, so a crowded 2.4 GHz environment is unlikely to wipe out all three advertisements."},
+  {q:"The 'G' in GFSK (Gaussian) is added to…",
+    opts:["Increase transmit power","Narrow the spectrum by smoothing the bit transitions","Encrypt the data","Double the symbol rate"],a:1,
+    exp:"Gaussian pulse-shaping rounds the frequency jumps so the signal occupies less bandwidth — at the cost of some inter-symbol interference."},
+  {q:"In Wi-Fi OFDM, what device builds one time-domain symbol from the QAM points?",
+    opts:["A mixer","An inverse FFT (IFFT)","A bandpass filter","A phase-locked loop"],a:1,
+    exp:"The IFFT turns 64 frequency-domain QAM points into one OFDM time symbol; the receiver's FFT recovers them."},
+  {q:"On a constellation diagram, moving from 64-QAM to BPSK when the link is weak…",
+    opts:["Sends more bits per symbol","Spaces the points far apart so noise causes fewer bit errors","Increases the data rate","Has no effect"],a:1,
+    exp:"Fewer points = larger spacing = more noise tolerance. Radios drop to lower-order modulation as SNR falls, trading speed for reliability."}
+];
+</script>
+<!--LABJS-->
+
+<!-- =======================================================================
+     PYTHON SYNTAX HIGHLIGHTER (runs over every <pre class="code">)
+======================================================================= -->
+<script>
+(function(){
+  const KW=new Set("import from as def return for in while if elif else with lambda class and or not is None True False print yield break continue global pass assert raise try except finally del".split(" "));
+  const B=new Set("np plt scipy signal fft fftfreq fftshift rfft rfftfreq ifft abs angle conj exp sin cos pi sqrt sign mean std arange linspace zeros ones array real imag where convolve hypot correlate repeat reshape welch butter filtfilt hilbert fromfile astype round int float complex64 randn random max min sum cumsum unwrap diff round_ tile concatenate".split(" "));
+  document.querySelectorAll('pre.code').forEach(pre=>{
+    let out=pre.textContent.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+    out=out.replace(/(#[^\n]*)|('[^']*'|"[^"]*")|(0x[0-9A-Fa-f]+|\b\d[\d_]*\.?\d*(?:[eE]-?\d+)?\b)|([A-Za-z_]\w*)/g,
+      (m,c,s,n,w)=>{
+        if(c) return '<span class="c">'+c+'</span>';
+        if(s) return '<span class="s">'+s+'</span>';
+        if(n) return '<span class="n">'+n+'</span>';
+        if(w){ if(KW.has(w)) return '<span class="k">'+w+'</span>';
+               if(B.has(w)) return '<span class="b">'+w+'</span>';
+               return w; }
+        return m;
+      });
+    pre.innerHTML=out;
+  });
+})();
+</script>
+
+<!-- =======================================================================
+     BACKGROUND STARFIELD
+======================================================================= -->
+<script>
+(function(){
+  const cv=document.getElementById('starfield'), x=cv.getContext('2d');
+  let stars=[];
+  function resize(){ cv.width=innerWidth; cv.height=innerHeight;
+    const n=Math.min(220, Math.floor(innerWidth*innerHeight/9000));
+    stars=Array.from({length:n},()=>({x:Math.random()*cv.width, y:Math.random()*cv.height,
+      r:Math.random()*1.3+0.2, a:Math.random()*0.6+0.2, tw:Math.random()*0.02+0.004, ph:Math.random()*7}));
+  }
+  function frame(t){
+    x.clearRect(0,0,cv.width,cv.height);
+    stars.forEach(s=>{ const al=s.a+0.35*Math.sin(s.ph+t*s.tw);
+      x.fillStyle='rgba(180,200,255,'+Math.max(0,al)+')';
+      x.beginPath(); x.arc(s.x,s.y,s.r,0,7); x.fill(); });
+    requestAnimationFrame(frame);
+  }
+  addEventListener('resize',resize); resize(); requestAnimationFrame(frame);
+})();
+</script>
+
+<!-- =======================================================================
+     QUIZ ENGINE
+======================================================================= -->
+<script>
+(function(){
+  const list=document.getElementById('qz_list'); if(!list) return;
+  const QS=window.SDR_QUIZ||[];
+  document.getElementById('qz_total').textContent=QS.length;
+  const cEl=document.getElementById('qz_correct'), aEl=document.getElementById('qz_answered'), fill=document.getElementById('qz_fill');
+  let answered=0, correct=0;
+  function update(){ cEl.textContent=correct; aEl.textContent=answered; fill.style.width=(QS.length?answered/QS.length*100:0)+'%'; }
+  function render(){
+    list.innerHTML=''; answered=0; correct=0;
+    QS.forEach((item,qi)=>{
+      const card=document.createElement('div'); card.className='q-card';
+      const qt=document.createElement('p'); qt.className='q-text';
+      qt.innerHTML='<span class="q-num">'+(qi+1)+'.</span> '+item.q;
+      const opts=document.createElement('div'); opts.className='q-opts';
+      const exp=document.createElement('div'); exp.className='q-exp';
+      exp.innerHTML='<b>Answer: '+String.fromCharCode(65+item.a)+' — '+item.opts[item.a]+'.</b> '+item.exp;
+      item.opts.forEach((text,oi)=>{
+        const b=document.createElement('button'); b.className='q-opt'; b.type='button';
+        b.innerHTML='<span class="q-mark">'+String.fromCharCode(65+oi)+'</span>'+text;
+        b.addEventListener('click',()=>{
+          if(b.disabled) return;
+          answered++;
+          opts.children[item.a].classList.add('correct');
+          if(oi===item.a) correct++; else b.classList.add('wrong');
+          Array.from(opts.children).forEach(c=>c.disabled=true);
+          exp.classList.add('show'); update();
+        });
+        opts.appendChild(b);
+      });
+      card.appendChild(qt); card.appendChild(opts); card.appendChild(exp);
+      list.appendChild(card);
+    });
+    update();
+  }
+  document.getElementById('qz_reset').addEventListener('click',render);
+  render();
+})();
+</script>
+
+<!-- =======================================================================
+     GLOSSARY ENGINE — inline hover terms + dynamic left rail
+======================================================================= -->
+<script>
+(function(){
+  const GLOSS=window.SDR_GLOSS||{};
+  const ORDER=Object.keys(GLOSS).sort((a,b)=>{
+    const la=Math.max(...GLOSS[a].terms.map(t=>t.length));
+    const lb=Math.max(...GLOSS[b].terms.map(t=>t.length));
+    return lb-la;
+  });
+  function findPhrase(text, phrase){
+    const lt=text.toLowerCase(), lp=phrase.toLowerCase(); let i=0;
+    while((i=lt.indexOf(lp,i))!==-1){
+      const b=i>0?text[i-1]:' ';
+      const a=(i+lp.length<text.length)?text[i+lp.length]:' ';
+      if(/[^A-Za-z0-9]/.test(b)&&/[^A-Za-z0-9]/.test(a)) return i;
+      i+=lp.length;
+    }
+    return -1;
+  }
+  function tryWrap(container, phrase, slug){
+    const walker=document.createTreeWalker(container, NodeFilter.SHOW_TEXT, {
+      acceptNode(n){
+        if(!n.nodeValue || n.nodeValue.indexOf('$')!==-1) return NodeFilter.FILTER_REJECT;
+        let p=n.parentNode;
+        while(p && p!==container){
+          const nm=(p.nodeName||'').toLowerCase();
+          if(p.classList && p.classList.contains('term')) return NodeFilter.FILTER_REJECT;
+          if(nm==='a'||nm==='b'||nm==='script'||nm==='style'||nm==='code'||nm==='pre'||nm.indexOf('mjx')===0) return NodeFilter.FILTER_REJECT;
+          p=p.parentNode;
+        }
+        return NodeFilter.FILTER_ACCEPT;
+      }
+    });
+    let node;
+    while(node=walker.nextNode()){
+      const idx=findPhrase(node.nodeValue, phrase);
+      if(idx!==-1){
+        const t=node.nodeValue;
+        const span=document.createElement('span');
+        span.className='term'; span.dataset.key=slug; span.textContent=t.slice(idx, idx+phrase.length);
+        const frag=document.createDocumentFragment();
+        if(idx>0) frag.appendChild(document.createTextNode(t.slice(0,idx)));
+        frag.appendChild(span);
+        const rest=t.slice(idx+phrase.length);
+        if(rest) frag.appendChild(document.createTextNode(rest));
+        node.parentNode.replaceChild(frag, node);
+        return true;
+      }
+    }
+    return false;
+  }
+  let sections;
+  function wrapGlossary(){
+    sections=document.querySelectorAll('section.chapter');
+    sections.forEach(sec=>{
+      const done=new Set();
+      const containers=sec.querySelectorAll('.beat p, .lab .hint, .who, .step, .leadin, .mathnote p');
+      containers.forEach(c=>{
+        ORDER.forEach(slug=>{
+          if(done.has(slug)) return;
+          for(const phrase of GLOSS[slug].terms){
+            if(tryWrap(c, phrase, slug)){ done.add(slug); break; }
+          }
+        });
+      });
+      const seen=[];
+      sec.querySelectorAll('.term').forEach(t=>{ const k=t.dataset.key; if(!seen.includes(k)) seen.push(k); });
+      sec.__terms=seen;
+    });
+  }
+  const tip=document.createElement('div'); tip.id='termTip'; document.body.appendChild(tip);
+  let hideT;
+  function showTip(el){
+    const g=GLOSS[el.dataset.key]; if(!g) return;
+    tip.innerHTML='<div class="tt-term">'+g.label+'</div><div>'+g.def+'</div>'+
+      (g.wiki?'<a class="tt-wiki" href="'+g.wiki+'" target="_blank" rel="noopener">Wikipedia ↗</a>':'');
+    tip.classList.add('show');
+    const r=el.getBoundingClientRect();
+    const tw=tip.offsetWidth, th=tip.offsetHeight;
+    let left=r.left+r.width/2-tw/2; left=Math.max(10, Math.min(left, innerWidth-tw-10));
+    let top=r.top-th-10; if(top<10) top=r.bottom+10;
+    tip.style.left=left+'px'; tip.style.top=top+'px';
+  }
+  function hideTip(){ tip.classList.remove('show'); }
+  document.addEventListener('mouseover',e=>{ const t=e.target.closest&&e.target.closest('.term'); if(t){ clearTimeout(hideT); showTip(t); } });
+  document.addEventListener('mouseout', e=>{ const t=e.target.closest&&e.target.closest('.term'); if(t){ hideT=setTimeout(hideTip,260); } });
+  tip.addEventListener('mouseenter',()=>clearTimeout(hideT));
+  tip.addEventListener('mouseleave',hideTip);
+  document.addEventListener('click',e=>{ const t=e.target.closest&&e.target.closest('.term'); if(t){ clearTimeout(hideT); showTip(t); hideT=setTimeout(hideTip,4500); } });
+
+  const panel=document.getElementById('glossaryPanel');
+  function renderPanel(sec){
+    if(!sec) return;
+    const slugs=sec.__terms||[];
+    const title=(sec.querySelector('h2')||{}).textContent||'';
+    let h='<div class="gp-card"><div class="gp-sec">In this section <span class="gp-count">'+slugs.length+' term'+(slugs.length===1?'':'s')+'</span></div><h4>'+title+'</h4>';
+    if(!slugs.length){ h+='<p class="gp-empty">No glossary terms in this section.</p>'; }
+    else slugs.forEach(slug=>{ const g=GLOSS[slug];
+      h+='<div class="gp-item"><span class="gp-term" data-jump="'+slug+'">'+g.label+'</span>'+
+         '<p class="gp-def">'+g.def+'</p>'+
+         (g.wiki?'<a class="gp-wiki" href="'+g.wiki+'" target="_blank" rel="noopener">Wikipedia ↗</a>':'')+'</div>';
+    });
+    h+='</div>';
+    panel.innerHTML=h;
+    panel.querySelectorAll('[data-jump]').forEach(s=>s.addEventListener('click',()=>{
+      const el=sec.querySelector('.term[data-key="'+s.dataset.jump+'"]');
+      if(el){ el.scrollIntoView({behavior:'smooth',block:'center'}); el.classList.remove('flash'); void el.offsetWidth; el.classList.add('flash'); }
+    }));
+  }
+  function init(){
+    wrapGlossary();
+    if(sections.length) renderPanel(sections[0]);
+    let current=sections[0];
+    const ratios=new Map();
+    const io=new IntersectionObserver(es=>{
+      es.forEach(e=>ratios.set(e.target, e.isIntersecting? e.intersectionRatio:0));
+      let best=current, bv=-1;
+      ratios.forEach((v,k)=>{ if(v>bv){ bv=v; best=k; } });
+      if(best && best!==current){ current=best; renderPanel(best); }
+    },{threshold:[0,0.12,0.3,0.55,0.8]});
+    sections.forEach(s=>io.observe(s));
+  }
+  let ran=false; const go=()=>{ if(ran) return; ran=true; init(); };
+  if(window.MathJax && MathJax.startup && MathJax.startup.promise){ MathJax.startup.promise.then(go).catch(go); }
+  setTimeout(go, 2600);
+})();
+</script>
+</body>
+</html>

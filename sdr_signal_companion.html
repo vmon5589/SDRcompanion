@@ -3231,8 +3231,12 @@ function fftMagDb(re, im){
       if(full) shapes.push({type:'line',xref:'x',yref:'paper',x0:x1,x1:x1,y0:0,y1:1,line:sep});  // letter end
       anns.push({x:(x0+x1)/2,xref:'x',y:1,yref:'paper',yanchor:'bottom',yshift:15,text:esc(labels[i])+(full?'':'…'),showarrow:false,font:{size:11.5,color:full?LC[i%2]:COL.muted}});
     }
-    for(let i=0;i<units.length && i<shown;i++){ const ci=Math.floor(i/perChar);   // one tick label per bit, under its letter
-      anns.push({x:i+0.5,xref:'x',y:1,yref:'paper',yanchor:'bottom',yshift:1,text:String(units[i]),showarrow:false,font:{size:8.5,color:LC[ci%2]}});
+    const vw=(typeof window!=='undefined'?(window.innerWidth||800):800);
+    const areaW=Math.max(200, Math.min(vw,760)-120);     // rough plotting-area width in px
+    if(areaW/Math.max(shown,1) >= 9){                    // drop per-bit digits when they would crowd (narrow screens / long msgs)
+      for(let i=0;i<units.length && i<shown;i++){ const ci=Math.floor(i/perChar);   // one tick label per bit, under its letter
+        anns.push({x:i+0.5,xref:'x',y:1,yref:'paper',yanchor:'bottom',yshift:1,text:String(units[i]),showarrow:false,font:{size:8.5,color:LC[ci%2]}});
+      }
     }
     return {shapes:shapes,annotations:anns};
   }
@@ -3338,11 +3342,14 @@ function fftMagDb(re, im){
     verdict('om_wifi_out',fromBitsMSB(rx.slice(0,bits.length),8),msg);
   }
 
-  function renderAll(msg){ doPocsag(msg); doNfc(msg); doBle(msg); doWifi(msg); }
+  let CURRENT=INPUTS[0].value;
+  function renderAll(msg){ CURRENT=msg; doPocsag(msg); doNfc(msg); doBle(msg); doWifi(msg); }
   INPUTS.forEach(function(inp){ inp.addEventListener('input',function(){
     const v=inp.value; INPUTS.forEach(function(o){ if(o!==inp) o.value=v; }); renderAll(v);
   }); });
-  renderAll(INPUTS[0].value);
+  let rT=null;                                           // re-evaluate label density when the viewport changes
+  if(typeof window!=='undefined') window.addEventListener('resize',function(){ clearTimeout(rT); rT=setTimeout(function(){ renderAll(CURRENT); },200); });
+  renderAll(CURRENT);
 })();
 </script>
 <script>
